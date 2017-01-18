@@ -20,11 +20,9 @@ Socket* Socket_Create(int id, char* ip_address, char* port) {
 }
 
 int Socket_Make_Nonblocking(Socket* sock) {
-	
 	if(sock != NULL) {
 		int flags;
 		int s;
-
 		flags = fcntl(sock->id, F_GETFL, 0);
 		if(flags == -1) {
 			return -1;
