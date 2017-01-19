@@ -25,6 +25,11 @@ void* receive_handler(void* arg) {
 	
 	Log_log(ctxt->log_config, LOG_DEBUG, "%s: enter poll while loop\n", ctxt->name);
 	while(1) {
+		if(ctxt->stop_thread == 1) {
+			Log_log(ctxt->log_config, LOG_DEBUG, "%s: exiting thread\n", ctxt->name);
+			break;
+		}
+		
 		Log_log(ctxt->log_config, LOG_DEBUG, "%s: wait before poll\n", ctxt->name);
 		int status = poll(fd_set, 1, 2500);
 		if(status < 0) {
@@ -100,6 +105,11 @@ void* receive_handler(void* arg) {
 			Log_log(ctxt->log_config, LOG_ERROR, "%s: hang up on fd\n", ctxt->name);
 		}
 	}
+	Log_log(ctxt->log_config, LOG_DEBUG, "%s: signalling calling thread that we have exited\n", ctxt->name);
+	pthread_mutex_lock(&stop_mutex);
+	ctxt->stop_thread = 0;
+	pthread_cond_signal(&stop_cond);
+	pthread_mutex_unlock(&stop_mutex);
 	return NULL;
 }//end handler
 
@@ -118,6 +128,7 @@ void Server_Run(char* ip_address, char* port) {
 	Process_Run(args);
 
 }
+
 
 unsigned char* Shutdown(Socket* sock, LogConfig* main_log_config, LogConfig* thread_log_config) {
 	if(sock != NULL) {	
@@ -139,7 +150,7 @@ unsigned char* Register(Socket* sock, char* username, char* password, char* emai
 
 	
 	Log_log(main_log_config, LOG_DEBUG, "sending initial registration data\n");
-
+	unsigned char* data = NULL;
 	if(sock != NULL) {	
 		Queue* queue = Queue_Create();
 		char* name = "REGISTER";
@@ -156,7 +167,6 @@ unsigned char* Register(Socket* sock, char* username, char* password, char* emai
 		//empty receive queue
 		Log_log(main_log_config, LOG_DEBUG, "peek at queue for data\n");
 		pthread_mutex_lock(&mutex);
-		unsigned char* data = NULL;
 		while( (data = Queue_Front(ctxt->queue)) == NULL) {
 			pthread_cond_wait(&cond, &mutex);
 		}
@@ -173,15 +183,29 @@ unsigned char* Register(Socket* sock, char* username, char* password, char* emai
 				
 			free(format);
 			free(string_data);	
-			return data;
 		}//end if data is null
+	
+		pthread_mutex_lock(&stop_mutex);
+		Log_log(main_log_config, LOG_DEBUG, "stopping thread....\n");
+		ctxt->stop_thread = 1;
+		while( ctxt->stop_thread == 1) {
+			Log_log(main_log_config, LOG_DEBUG, "before cond wait: %i\n", ctxt->stop_thread);
+			pthread_cond_wait(&stop_cond, &stop_mutex);
+			Log_log(main_log_config, LOG_DEBUG, "after cond wait: %i\n", ctxt->stop_thread);
+		}
+		pthread_mutex_unlock(&stop_mutex);
+		
+		
+		ClientContext_Destroy(ctxt);
 		
 
-		ClientContext_Destroy(ctxt);
-		pthread_cancel(receive_thread);
+
 	} else { //end if client connected
 		Log_log(main_log_config, LOG_ERROR, "client couldn't connect to server\n");
 	}
+		
+	Log_log(main_log_config, LOG_DEBUG, "returning data\n");
+	return data;
 
 }
 
@@ -191,6 +215,7 @@ unsigned char* Login(Socket* sock, char* username, char* password,
 	
 	Log_log(main_log_config, LOG_DEBUG, "sending loging data\n");
 
+	unsigned char* data = NULL;
 	if(sock != NULL) {	
 		Queue* queue = Queue_Create();
 		char* name = "LOGIN";
@@ -206,7 +231,6 @@ unsigned char* Login(Socket* sock, char* username, char* password,
 		//empty receive queue
 		Log_log(main_log_config, LOG_DEBUG, "peek at queue for data\n");
 		pthread_mutex_lock(&mutex);
-		unsigned char* data = NULL;
 		while( (data = Queue_Front(ctxt->queue)) == NULL) {
 			pthread_cond_wait(&cond, &mutex);
 		}
@@ -223,15 +247,24 @@ unsigned char* Login(Socket* sock, char* username, char* password,
 				
 			free(format);
 			free(string_data);	
-			return data;
 		}//end if data is null
 		
+		pthread_mutex_lock(&stop_mutex);
+		Log_log(main_log_config, LOG_DEBUG, "stopping thread....\n");
+		ctxt->stop_thread = 1;
+		while( ctxt->stop_thread == 1) {
+			Log_log(main_log_config, LOG_DEBUG, "before cond wait: %i\n", ctxt->stop_thread);
+			pthread_cond_wait(&stop_cond, &stop_mutex);
+			Log_log(main_log_config, LOG_DEBUG, "after cond wait: %i\n", ctxt->stop_thread);
+		}
+		pthread_mutex_unlock(&stop_mutex);
 
 		ClientContext_Destroy(ctxt);
-		pthread_cancel(receive_thread);
+
 	} else { //end if client connected
 		Log_log(main_log_config, LOG_ERROR, "client couldn't connect to server\n");
 	}
+	return data;
 
 }
 
@@ -240,7 +273,7 @@ unsigned char* Logout(Socket* sock, char* session_token,
 
 	
 	Log_log(main_log_config, LOG_DEBUG, "sending logout\n");
-
+	unsigned char* data = NULL;
 	if(sock != NULL) {	
 		Queue* queue = Queue_Create();
 		char* name = "LOGOUT";
@@ -256,7 +289,6 @@ unsigned char* Logout(Socket* sock, char* session_token,
 		//empty receive queue
 		Log_log(main_log_config, LOG_DEBUG, "peek at queue for data\n");
 		pthread_mutex_lock(&mutex);
-		unsigned char* data = NULL;
 		while( (data = Queue_Front(ctxt->queue)) == NULL) {
 			pthread_cond_wait(&cond, &mutex);
 		}
@@ -273,15 +305,25 @@ unsigned char* Logout(Socket* sock, char* session_token,
 				
 			free(format);
 			free(string_data);	
-			return data;
 		}//end if data is null
 		
+		pthread_mutex_lock(&stop_mutex);
+		Log_log(main_log_config, LOG_DEBUG, "stopping thread....\n");
+		ctxt->stop_thread = 1;
+		while( ctxt->stop_thread == 1) {
+			Log_log(main_log_config, LOG_DEBUG, "before cond wait: %i\n", ctxt->stop_thread);
+			pthread_cond_wait(&stop_cond, &stop_mutex);
+			Log_log(main_log_config, LOG_DEBUG, "after cond wait: %i\n", ctxt->stop_thread);
+		}
+		pthread_mutex_unlock(&stop_mutex);
 
+		
 		ClientContext_Destroy(ctxt);
-		pthread_cancel(receive_thread);
+
 	} else { //end if client connected
 		Log_log(main_log_config, LOG_ERROR, "client couldn't connect to server\n");
 	}
+	return data;
 
 }
 
@@ -302,6 +344,10 @@ void Test_Register_Send_Response(char* ip_address, char* port, LogConfig* main_l
 
 	Log_log(main_log_config, LOG_INFO, "registering\n");
 	unsigned char* data = Register(sock, username, hidden_password, email, main_log_config, thread_log_config);
+	printf("after\n");
+	Log_log(main_log_config, LOG_DEBUG, "after\n");
+	
+	Log_log(main_log_config, LOG_DEBUG, "data result:%p\n", data);
 
 	unsigned short cmd = 0;
 	unsigned short proto = 0;
@@ -404,8 +450,8 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 
 void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log_config, LogConfig* thread_log_config) {
 
-	//Log_log(main_log_config, LOG_DEBUG, "starting server in the background\n");
-	//Server_Run(ip_address, port);	
+	Log_log(main_log_config, LOG_DEBUG, "starting server in the background\n");
+	Server_Run(ip_address, port);	
 
 	char username[USERNAME_LENGTH+1] = {'\0'};
 	strcpy(username, "juxstapose");
@@ -431,7 +477,7 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 	
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
 	char session_token[SESSION_LENGTH+1] = {'\0'};
-	
+	memset(session_token, '0', SESSION_LENGTH+1);	
 	Log_log(main_log_config, LOG_INFO, "try logout with no session...not logged in\n");
 	data = Logout(sock, session_token, main_log_config, thread_log_config);
 		
@@ -456,7 +502,7 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 	sleep(3);
 	
 	data = Logout(sock, session_token, main_log_config, thread_log_config);
-	
+		
 	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
 	if(cmd == CMD_LOGOUT && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 4 logout response passed\n");
@@ -464,8 +510,8 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 
 	sleep(3);
 	
-	//Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
-	//Shutdown(sock, main_log_config, thread_log_config);
+	Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
+	Shutdown(sock, main_log_config, thread_log_config);
 	
 	Socket_Destroy(sock);
 

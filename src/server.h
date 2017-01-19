@@ -12,7 +12,8 @@ typedef struct ServerContext {
 	
 	sqlite3* db;
 	Socket* sock;
-	Session_Hashtable* session_hashtable;
+	Session_Hashtable* session_hashtable_username;
+	Session_Hashtable* session_hashtable_token;
 	LogConfig* log_config;
 
 } ServerContext;
@@ -30,8 +31,13 @@ typedef struct ServerCmd {
 	cmd_func cmd_func_table[NUM_CMD_MAX][NUM_PROTO_MAX];
 } ServerCmd;
 
-void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listener, sqlite3* db, Session_Hashtable* session_hashtable, LogConfig* log_config);
-ServerContext* ServerContext_Create(sqlite3* db, Socket* sock, Session_Hashtable* session_hashtable, LogConfig* log_config);
+void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listener, sqlite3* db, 
+		               Session_Hashtable* session_hashtable_username, Session_Hashtable* session_hashtable_token, LogConfig* log_config);
+
+ServerContext* ServerContext_Create(sqlite3* db, Socket* sock, 
+				    Session_Hashtable* session_hashtable_username, 
+				    Session_Hashtable* session_hashtable_token,
+				    LogConfig* log_config);
 void ServerContext_Destroy(ServerContext* ctxt);
 ServerCmd* ServerCmd_Create();
 void ServerCmd_Destroy(ServerCmd* cmd);

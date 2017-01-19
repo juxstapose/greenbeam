@@ -13,7 +13,7 @@ typedef struct ClientContext {
 	Socket* sock;
 	Queue* queue;
 	LogConfig* log_config;
-
+	int stop_thread;
 } ClientContext;
 
 ClientContext* ClientContext_Create(char name[CONTEXT_NAME_LENGTH+1], Socket* sock, Queue* queue, LogConfig* log_config);	

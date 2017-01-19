@@ -41,20 +41,22 @@ int main(int argc, char* argv[]) {
 
 
 	Socket_Hashtable* sock_hashtable = Socket_Hashtable_Create();
-	Session_Hashtable* session_hashtable = Session_Hashtable_Create();
+	Session_Hashtable* session_hashtable_username = Session_Hashtable_Create();
+	Session_Hashtable* session_hashtable_token = Session_Hashtable_Create();
 	
 	Log_log(log_config, LOG_INFO, "create socket and bind an listen on %s with port %s\n", ip_address, port);
 	Socket* listener = Server_Bind_Listen(ip_address, port, log_config);
 	
 	if(listener != NULL) {	
-		Server_Poll_Event_Handler(sock_hashtable, listener, db, session_hashtable, log_config);
+		Server_Poll_Event_Handler(sock_hashtable, listener, db, session_hashtable_username, session_hashtable_token, log_config);
 	} else {
 		Log_log(log_config, LOG_ERROR, "bind an listen failed...listener socket is null\n");
 	}
 
 
 	Socket_Hashtable_Destroy(sock_hashtable);	
-	Session_Hashtable_Destroy(session_hashtable);	
+	Session_Hashtable_Destroy(session_hashtable_username);	
+	Session_Hashtable_Destroy(session_hashtable_token);	
 	Socket_Destroy(listener);	
 	User_Database_Close(db, log_config);
 	LogConfig_Destroy(log_config);

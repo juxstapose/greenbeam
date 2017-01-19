@@ -22,6 +22,7 @@ ClientContext* ClientContext_Create(char name[CONTEXT_NAME_LENGTH+1], Socket* so
 	ctxt->queue = queue;
 	ctxt->log_config = log_config;
 	
+	ctxt->stop_thread = 0;	
 	return ctxt;
 }
 

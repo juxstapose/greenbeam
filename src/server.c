@@ -21,13 +21,16 @@
 #include "user_database.h"
 #include "pollfd_dynamic_array.h"
 
-ServerContext* ServerContext_Create(sqlite3* db, Socket* sock, Session_Hashtable* session_hashtable, LogConfig* log_config) {		
+ServerContext* ServerContext_Create(sqlite3* db, Socket* sock, 
+		                    Session_Hashtable* session_hashtable_username, 
+				    Session_Hashtable* session_hashtable_token, LogConfig* log_config) {		
 	
 	ServerContext* ctxt = (ServerContext*)malloc(sizeof(ServerContext));
 	
 	ctxt->db = db;
 	ctxt->sock = sock;
-	ctxt->session_hashtable = session_hashtable;
+	ctxt->session_hashtable_username = session_hashtable_username;
+	ctxt->session_hashtable_token = session_hashtable_token;
 	ctxt->log_config = log_config;
 
 	return ctxt;
@@ -124,7 +127,8 @@ Socket* Server_Accept(Socket* listener, LogConfig* log_config) {
 }
 
 
-void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listener, sqlite3* db, Session_Hashtable* session_hashtable, LogConfig* log_config) {
+void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listener, sqlite3* db, 
+		               Session_Hashtable* session_hashtable_username, Session_Hashtable* session_hashtable_token, LogConfig* log_config) {
 	//struct pollfd* fd_set = calloc(MAX_FD, sizeof(struct pollfd));
 		
 	int connected_socket_id = 0;
@@ -158,9 +162,13 @@ void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listene
 			Log_log(log_config, LOG_DEBUG, "socket array:\n %s\n", string_d_array);
 			free(string_d_array);
 			
-			char* string_hashtable = Session_Hashtable_String(session_hashtable);
-			Log_log(log_config, LOG_DEBUG, "session table:\n %s", string_hashtable);
-			free(string_hashtable);
+			char* string_username_hashtable = Session_Hashtable_String(session_hashtable_username);
+			Log_log(log_config, LOG_DEBUG, "session table:\n %s", string_username_hashtable);
+			free(string_username_hashtable);
+			
+			char* string_token_hashtable = Session_Hashtable_String(session_hashtable_token);
+			Log_log(log_config, LOG_DEBUG, "session table:\n %s", string_token_hashtable);
+			free(string_token_hashtable);
 
 			if(fd_array->array[fd_index].revents & POLLIN) {
 				Log_log(log_config, LOG_DEBUG, "read event found!\n");
@@ -207,7 +215,8 @@ void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listene
 						}
 						//NULL payload
 						if(payload_size == 0) {
-							ServerContext* ctxt = ServerContext_Create(db, sock, session_hashtable, log_config); 
+							ServerContext* ctxt = ServerContext_Create(db, sock, session_hashtable_username, 
+												   session_hashtable_token, log_config); 
 							Log_log(log_config, LOG_INFO, "cmd dispatched (%i %i)\n", cmd, proto);
 							unsigned int bytes_sent = ServerCmd_Dispatch(ctxt, header, NULL, cmd, proto);
 							Log_log(log_config, LOG_INFO, "%i bytes sent\n", bytes_sent);
@@ -227,7 +236,8 @@ void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listene
 								} 
 							}
 							if(payload != NULL) {
-								ServerContext* ctxt = ServerContext_Create(db, sock, session_hashtable, log_config); 
+								ServerContext* ctxt = ServerContext_Create(db, sock, session_hashtable_username, 
+													   session_hashtable_token, log_config); 
 								Log_log(log_config, LOG_INFO, "cmd dispatched (%i %i)\n", cmd, proto);
 								unsigned int bytes_sent = ServerCmd_Dispatch(ctxt, header, payload, cmd, proto);
 								Log_log(log_config, LOG_INFO, "%i bytes sent\n", bytes_sent);
@@ -330,7 +340,7 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 		bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config); 	
 	} else {
 		//is this user logged in already
-		Session* logged_in_session = Session_Hashtable_Get(ctxt->session_hashtable, username);
+		Session* logged_in_session = Session_Hashtable_Get(ctxt->session_hashtable_username, username);
 		if(logged_in_session == NULL) {
 			//create session toke
 			
@@ -349,7 +359,8 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			//when clients connection breaks or client logs out the session position is saved to DB 
 
 			Session* session = Session_Create(session_token, user->username, user->password, user->email, 0, 0, ctxt->sock);
-			Session_Hashtable_Set(ctxt->session_hashtable, username, session);
+			Session_Hashtable_Set(ctxt->session_hashtable_username, username, session);
+			Session_Hashtable_Set(ctxt->session_hashtable_token, session_token, session);
 
 			//send in logged in response back to client
 			unsigned char* data = Protocol_Login_Response(session_token);
@@ -373,9 +384,11 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 unsigned int Server_Logout_Response_Send(ServerContext* ctxt, unsigned char* header, unsigned char* payload) {
 	char* session_token = (char*)malloc(SESSION_LENGTH + 1);
 	Protocol_Session_Unpack(header, session_token);
-	Session* session = Session_Hashtable_Get(ctxt->session_hashtable, session_token); 
+	Session* session = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
 	int bytes_sent = 0;
 	if(session != NULL) {
+		Session_Hashtable_Remove(ctxt->session_hashtable_username, session->username);	
+		Session_Hashtable_Remove(ctxt->session_hashtable_token, session->session_token);	
 		unsigned char* data = Protocol_Logout_Response(session_token);
 		char* format = Protocol_Get_Format(data);
 		int size_to_send = Binary_Calcsize(format);
@@ -408,7 +421,7 @@ unsigned int Server_Movement_Response_Send(ServerContext* ctxt, unsigned char* h
 	Log_log(ctxt->log_config, LOG_DEBUG, "sending movement response\n");
 	char* session_token = (char*)malloc(SESSION_LENGTH + 1);
 	Protocol_Session_Unpack(header, session_token);
-	Session* session = Session_Hashtable_Get(ctxt->session_hashtable, session_token); 
+	Session* session = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
 	if(session != NULL) {
 		unsigned char* data = Protocol_Movement_Response(session_token);
 		char* format = Protocol_Get_Format(data);
@@ -434,7 +447,7 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 	int bytes_sent = 0;
 	char* session_token = (char*)malloc(SESSION_LENGTH+1);	
 	Protocol_Session_Unpack(header, session_token);
-	Session* session = Session_Hashtable_Get(ctxt->session_hashtable, session_token); 
+	Session* session = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
 	if(session != NULL) {
 		int current_pos_x = 0;
 		int current_pos_y = 0;	
