@@ -187,7 +187,7 @@ char* Protocol_Get_Format(unsigned char* data) {
 		int format_size = strlen(HEADER_FORMAT) + 1 +2;
 		char* format = (char*)malloc(format_size);
 		memset(format, '\0', format_size);
-		int bytes = sprintf(format, "%sii", HEADER_FORMAT);
+		int bytes = sprintf(format, "%s", HEADER_FORMAT);
 		free(session_token);
 		return format;
 	}
@@ -310,7 +310,9 @@ unsigned char* Protocol_Login_Response(char session_token[SESSION_LENGTH + 1]) {
 }
 
 
-unsigned char* Protocol_Movement_Send(char session_token[SESSION_LENGTH+1], unsigned short direction, unsigned short speed, unsigned short previous_frames) {
+unsigned char* Protocol_Movement_Send(char session_token[SESSION_LENGTH+1], 
+		                      unsigned short direction, unsigned short speed, 
+				      unsigned short previous_frames) {
 	char format[128] = {'\0'};	
 	int bytes = sprintf(format, "%sHHH", HEADER_FORMAT);
 	int payload_size = sizeof(unsigned short) + sizeof(unsigned short) + sizeof(unsigned short);
@@ -356,11 +358,11 @@ unsigned char* Protocol_Logout_Response(char session_token[SESSION_LENGTH+1]) {
 	return result;
 }
 
-unsigned char* Protocol_Ping_Send(char session_token[SESSION_LENGTH+1], int current_pos_x, int current_pos_y) {
+unsigned char* Protocol_Ping_Send(char session_token[SESSION_LENGTH+1]) {
 	char format[128] = {'\0'};	
-	int bytes = sprintf(format, "%sii", HEADER_FORMAT);
+	int bytes = sprintf(format, "%s", HEADER_FORMAT);
 	int payload_size = sizeof(int) + sizeof(int);	
-	unsigned char* result = Binary_Pack(format, 'S', 'A',  session_token, CMD_PING, PROTO_SEND, payload_size, current_pos_x, current_pos_y);
+	unsigned char* result = Binary_Pack(format, 'S', 'A',  session_token, CMD_PING, PROTO_SEND, payload_size);
 	return result;
 }
 
@@ -464,9 +466,6 @@ void Protocol_Movement_Send_Payload_Unpack(unsigned char* payload, unsigned shor
 	Binary_Unpack("!HHH", payload, direction, speed, previous_frames);
 }
 
-void Protocol_Ping_Send_Payload_Unpack(unsigned char* payload, int *current_pos_x, int *current_pos_y) {
-	Binary_Unpack("!ii", payload, current_pos_x, current_pos_y);
-}
 
 void Protocol_Error_Response_Payload_Unpack(unsigned char* payload, unsigned short *error_code) {
 	Binary_Unpack("!H", payload, error_code);

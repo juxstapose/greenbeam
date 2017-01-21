@@ -8,7 +8,11 @@
 
 //chaining for collisions
 typedef struct Session_Hashtable {	
-	Session_List* table[SESSION_HASHTABLE_MAX_ITEMS];
+	unsigned int size;
+	unsigned int count;
+	float load_factor;
+	unsigned int growth_factor;
+	Session_List** table;
 } Session_Hashtable;
 
 Session_Hashtable* Session_Hashtable_Create();	
@@ -18,7 +22,8 @@ void Session_Hashtable_Remove(Session_Hashtable* session_hashtable, char* key);
 char* Session_Hashtable_String(Session_Hashtable* session_hashtable);
 void Session_Hashtable_Print(Session_Hashtable* table);
 Session_Hashtable* Session_Hashtable_Destroy(Session_Hashtable* session_hashtable);
-unsigned long Session_Hashtable_HashCode(char *str);
+void Session_Hashtable_Resize(Session_Hashtable* session_hashtable);
+unsigned long Session_Hashtable_HashCode(unsigned int size, char *str);
 
 
 #endif
