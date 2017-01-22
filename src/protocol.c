@@ -358,11 +358,11 @@ unsigned char* Protocol_Logout_Response(char session_token[SESSION_LENGTH+1]) {
 	return result;
 }
 
-unsigned char* Protocol_Ping_Send(char session_token[SESSION_LENGTH+1]) {
+unsigned char* Protocol_Ping_Send(char session_token[SESSION_LENGTH+1], int current_pos_x, int current_pos_y) {
 	char format[128] = {'\0'};	
-	int bytes = sprintf(format, "%s", HEADER_FORMAT);
+	int bytes = sprintf(format, "%sii", HEADER_FORMAT, current_pos_x, current_pos_y);
 	int payload_size = sizeof(int) + sizeof(int);	
-	unsigned char* result = Binary_Pack(format, 'S', 'A',  session_token, CMD_PING, PROTO_SEND, payload_size);
+	unsigned char* result = Binary_Pack(format, 'S', 'A',  session_token, CMD_PING, PROTO_SEND, payload_size, current_pos_x, current_pos_y);
 	return result;
 }
 
@@ -460,6 +460,10 @@ void Protocol_Login_Send_Payload_Unpack(unsigned char* payload, char username_ou
 		Binary_Unpack(new_format_three, payload, &username_size, username_out, &password_size, password_out);
 		free(new_format_three);
 	}
+}
+
+void Protocol_Ping_Send_Payload_Unpack(unsigned char* payload, int *current_pos_x, int *current_pos_y) {
+	Binary_Unpack("!ii", payload, current_pos_x, current_pos_y);
 }
 
 void Protocol_Movement_Send_Payload_Unpack(unsigned char* payload, unsigned short *direction, unsigned short *speed, unsigned short *previous_frames) {

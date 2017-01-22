@@ -357,11 +357,16 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			//last position is last position recorded when client broken connection or logged out
 			//session is updated by pings to keep position updated
 			//when clients connection breaks or client logs out the session position is saved to DB 
-			
+			int x = 0;
+			int y = 0;
+
+
 			unsigned int initial_size = 20;
 			Session_Hashtable* session_hashtable_inrange = Session_Hashtable_Create(initial_size);
 			Session_Hashtable* session_hashtable_outofrange = Session_Hashtable_Create(initial_size);
-			Session* session = Session_Create(session_token, user->username, 0, 0, 
+			
+			
+			Session* session = Session_Create(session_token, user->username, x, y, 
 							  session_hashtable_inrange, session_hashtable_outofrange, ctxt->sock);
 			Session_Hashtable_Set(ctxt->session_hashtable_username, username, session);
 			Session_Hashtable_Set(ctxt->session_hashtable_token, session_token, session);
@@ -453,7 +458,9 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 	Protocol_Session_Unpack(header, session_token);
 	Session* session = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
 	if(session != NULL) {
-		
+		int current_pos_x = 0;
+		int current_pos_y = 0;
+		Protocol_Ping_Send_Payload_Unpack(payload, &current_pos_x, &current_pos_y);	
 		
 		
 		unsigned char* data = Protocol_Ping_Response(session_token);
