@@ -4,6 +4,8 @@
 #include <sqlite3.h>
 #include "log.h"
 
+#define SQL_STRING_MAX_SIZE 8192
+
 static int Database_Callback(void *NotUsed, int argc, char **argv, char **azColName);
 sqlite3* Database_Open(char* filename, LogConfig* log_config);
 void Database_Drop_Table(sqlite3* db, char* table_name, LogConfig* log_config);

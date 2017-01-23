@@ -3,8 +3,9 @@
 #include <string.h>
 #include "user.h"
 
-User* User_Create(char* username, char* password, char* email) {
+User* User_Create(int user_key, char* username, char* password, char* email) {
 	User* user = (User*)malloc(sizeof(User));
+	user->user_key = user_key;
 	if(username != NULL) {
 		strcpy(user->username, username);
 	} 

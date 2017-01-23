@@ -34,14 +34,14 @@ void Database_Drop_Table(sqlite3* db, char* table_name, LogConfig* log_config) {
 	
 	char buffer[SQL_STRING_MAX_SIZE] = {'\0'};
 	int bytes = sprintf(buffer, "DROP TABLE IF EXISTS %s;", table_name);
-	User_Database_Exec_Sql(db, buffer, log_config);
+	Database_Exec_Sql(db, buffer, log_config);
 	
 
 }
 int Database_Exec_Sql(sqlite3* db, char* sql, LogConfig* log_config) {
 	int rc;
 	char* error_msg = '\0';
-	rc = sqlite3_exec(db, sql, User_Database_Callback, 0, &error_msg);
+	rc = sqlite3_exec(db, sql, Database_Callback, 0, &error_msg);
 	Log_log(log_config, LOG_DEBUG, "%s\n", sql);		
 	if(rc != SQLITE_OK) {
 		Log_log(log_config, LOG_ERROR, "SQL_ERROR: %s\n", error_msg);

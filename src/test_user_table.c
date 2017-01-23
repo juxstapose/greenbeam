@@ -24,21 +24,23 @@ void Test_Insert_Find() {
 	User_Create_Table(db, log_config);
 	
 	
+	int user_key_one = 1;
 	char* username_one = "juxstapose";
 	char* password_one = "Inioh2";
 	char* email_one = "joe@blow.com";
 	char hidden_password_one[SHA_STRING_SIZE] = {'\0'};
 	Util_Sha256(password_one, hidden_password_one);	
-	User* user_one = User_Create(username_one, hidden_password_one, email_one);	
+	User* user_one = User_Create(user_key_one, username_one, hidden_password_one, email_one);	
 	Log_log(log_config, LOG_DEBUG, "INPUT username:%s password:%s email:%s\n", user_one->username, user_one->password, user_one->email);
 	User_Insert(db, user_one, log_config);	
 	
+	int user_key_two = 2;
 	char* username_two = "bonggong";
 	char* password_two = "liquid2";
 	char* email_two = "george@bathroom.com";
 	char hidden_password_two[SHA_STRING_SIZE] = {'\0'};
 	Util_Sha256(password_two, hidden_password_two);	
-	User* user_two = User_Create(username_two, hidden_password_two, email_two);	
+	User* user_two = User_Create(user_key_two, username_two, hidden_password_two, email_two);	
 	Log_log(log_config, LOG_DEBUG, "INPUT username:%s password:%s email:%s\n", user_two->username, user_two->password, user_two->email);
 	User_Insert(db, user_two, log_config);	
 	
@@ -77,31 +79,34 @@ void Test_Update_Find() {
 	sqlite3* db = Database_Open("test.db", log_config);
 	Database_Drop_Table(db, "user", log_config);
 	User_Create_Table(db, log_config);
-
+	
+	int user_key_one = 1;
 	char* username_one = "juxstapose";
 	char* password_one = "Inioh2";
 	char* email_one = "joe@blow.com";
 	char hidden_password_one[SHA_STRING_SIZE] = {'\0'};
 	Util_Sha256(password_one, hidden_password_one);	
-	User* user_one = User_Create(username_one, hidden_password_one, email_one);	
+	User* user_one = User_Create(user_key_one, username_one, hidden_password_one, email_one);	
 	Log_log(log_config, LOG_DEBUG, "INPUT username:%s password:%s email:%s\n", user_one->username, user_one->password, user_one->email);
 	User_Insert(db, user_one, log_config);	
 	
+	int user_key_two = 2;
 	char* username_two = "bonggong";
 	char* password_two = "liquid2";
 	char* email_two = "george@bathroom.com";
 	char hidden_password_two[SHA_STRING_SIZE] = {'\0'};
 	Util_Sha256(password_two, hidden_password_two);	
-	User* user_two = User_Create(username_two, hidden_password_two, email_two);	
+	User* user_two = User_Create(user_key_two, username_two, hidden_password_two, email_two);	
 	Log_log(log_config, LOG_DEBUG, "INPUT username:%s password:%s email:%s\n", user_two->username, user_two->password, user_two->email);
 	User_Insert(db, user_two, log_config);	
 	
+	int user_key_three = 3;
 	char* username_three = "foobar";
 	char* password_three = "password";
 	char* email_three = "you@them.com";
 	char hidden_password_three[SHA_STRING_SIZE] = {'\0'};
 	Util_Sha256(password_two, hidden_password_three);	
-	User* update_user = User_Create(username_three, hidden_password_three, email_three);
+	User* update_user = User_Create(user_key_three, username_three, hidden_password_three, email_three);
 	User_Update_By_Username(db, update_user, "bonggong", log_config);
 
 	User* user_three_found = User_Find_By_Username(db, "foobar", log_config);			
@@ -137,13 +142,14 @@ void Test_Delete_Find() {
 	sqlite3* db = Database_Open("test.db", log_config);
 	Database_Drop_Table(db, "user", log_config);
 	User_Create_Table(db, log_config);
-	
+
+	int user_key_one = 1;	
 	char* username_one = "juxstapose";
 	char* password_one = "Inioh2";
 	char* email_one = "joe@blow.com";
 	char hidden_password_one[SHA_STRING_SIZE] = {'\0'};
 	Util_Sha256(password_one, hidden_password_one);	
-	User* user_one = User_Create(username_one, hidden_password_one, email_one);	
+	User* user_one = User_Create(user_key_one, username_one, hidden_password_one, email_one);	
 	Log_log(log_config, LOG_DEBUG, "INPUT username:%s password:%s email:%s\n", user_one->username, user_one->password, user_one->email);
 	User_Insert(db, user_one, log_config);	
 	
