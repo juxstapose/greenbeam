@@ -12,7 +12,7 @@ SDL_Texture* Background_Load_Image(SDL_Renderer* renderer, char* filename, LogCo
 	return tex;
 }	
 
-Background* Background_Create(SDL_Renderer* renderer, unsigned int size, char* filenames[], LogConfig* log_config) {
+Background* Background_Create(SDL_Renderer* renderer, unsigned int size, char** filenames, LogConfig* log_config) {
 	Background* background = (Background*)malloc(sizeof(Background));
 	background->textures = (SDL_Texture**)calloc(size, sizeof(SDL_Texture*));
 	int i = 0;
@@ -28,6 +28,24 @@ void Background_Destroy(Background* background) {
 		free(background->textures);
 		free(background);
 	}
+}
+
+unsigned int Background_Get_Largest_Height(Background* background) {
+
+	int i = 0;
+	unsigned int result = 0;
+	for(i=0; i<background->size; i++) {
+		if(background->textures[i] != NULL) {
+			int width = 0;
+			int height = 0;
+			SDL_QueryTexture(background->textures[i], NULL, NULL, &width, &height);
+			if(height >= result) {
+				result = height;
+			}
+		}
+	}
+	return result;
+
 }
 
 unsigned int Background_Get_Total_Width(Background* background) {

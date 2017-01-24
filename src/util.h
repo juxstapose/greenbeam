@@ -12,5 +12,6 @@ void Util_Remove_All_Chars(char* str, char c);
 void Util_Sha256(char *string, char outputBuffer[SHA_STRING_SIZE]);
 char* Util_Formatted_Timestamp();
 uint64_t Util_Microsecond_Timestamp();
+unsigned int Util_Comma_Delimited_Count(char* comma_delimited_names);
 
 #endif

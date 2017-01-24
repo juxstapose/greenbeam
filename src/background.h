@@ -11,8 +11,9 @@ typedef struct Background {
 } Background;
 
 SDL_Texture* Background_Load_Image(SDL_Renderer* renderer, char* filename, LogConfig* log_config); 
-Background* Background_Create(SDL_Renderer* renderer, unsigned int size, char* filenames[], LogConfig* log_config);
+Background* Background_Create(SDL_Renderer* renderer, unsigned int size, char** filenames, LogConfig* log_config);
 void Background_Destroy(Background* background);
+unsigned int Background_Get_Largest_Height(Background* background);
 unsigned int Background_Get_Total_Width(Background* background);
 
 #endif

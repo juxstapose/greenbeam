@@ -111,3 +111,19 @@ char* Util_Formatted_Timestamp() {
 	return result;
 }
 
+
+unsigned int Util_Comma_Delimited_Count(char* comma_delimited_names) {
+	unsigned int count = 0;
+	if(comma_delimited_names != NULL) {
+		char* current = comma_delimited_names;
+		while(*current != '\0') { 
+			if(*current == ',') {
+				count++;
+			}
+			current++;
+		}
+		return count + 1;
+	}
+	return count;
+}
+

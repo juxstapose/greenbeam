@@ -12,8 +12,6 @@
 
 
 int main(int argc, char* argv[]) {
-	
-
 	LogConfig* log_config = LogConfig_Create("log.txt", 
 						 LOG_ON,
 						 LOG_FILE,
