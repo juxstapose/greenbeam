@@ -1,10 +1,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "location.h"
 #include "sock.h"
 #include "session.h"
 
-Session* Session_Create(char* session_token, char* username, int current_pos_x, int current_pos_y, 
+Session* Session_Create(char* session_token, char* username, Location* location, 
 			Session_Hashtable* session_table_inrange, Session_Hashtable* session_table_outofrange, Socket* sock) {
 	Session* session = (Session*)malloc(sizeof(Session));
 	if(session_token != NULL) {
@@ -16,8 +17,7 @@ Session* Session_Create(char* session_token, char* username, int current_pos_x, 
 	if(username != NULL) {
 		strcpy(session->username, username);
 	} 
-	session->current_pos_x = current_pos_x;
-	session->current_pos_y = current_pos_y;
+	session->location = location;
 	session->session_table_inrange = session_table_inrange;
 	session->session_table_outofrange = session_table_outofrange;
 	session->sock = sock;

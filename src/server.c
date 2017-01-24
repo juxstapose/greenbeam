@@ -17,9 +17,13 @@
 #include "pack.h"
 #include "protocol.h"
 #include "sock.h"
+#include "database.h"
 #include "user.h"
-#include "user_database.h"
+#include "user_table.h"
+#include "location.h"
+#include "location_table.h"
 #include "pollfd_dynamic_array.h"
+#include "background.h"
 
 ServerContext* ServerContext_Create(sqlite3* db, Socket* sock, 
 		                    Session_Hashtable* session_hashtable_username, 
@@ -304,6 +308,11 @@ unsigned int Server_Register_Response_Send(ServerContext* ctxt, unsigned char* h
 	if(user == NULL) {
 		User* new_user = User_Create(username, password, email);
 		User_Insert(ctxt->db, new_user, ctxt->log_config);
+		User* user_inserted = User_Find_By_Username(ctxt->db, username, ctxt->log_config);
+		if(user_inserted != NULL) {
+			Location* location = Location_Create(0, user_inserted->user_key, LOC_STARTING_ZONE, LOC_STARTING_X, LOC_STARTING_Y);
+			Location_Insert(ctxt->db, location, ctxt->log_config);
+		}
 		//send response back that user has been registered
 		unsigned char* data = Protocol_Register_Response();
 	       	char* format = Protocol_Get_Format(data);	
@@ -357,16 +366,15 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			//last position is last position recorded when client broken connection or logged out
 			//session is updated by pings to keep position updated
 			//when clients connection breaks or client logs out the session position is saved to DB 
-			int x = 0;
-			int y = 0;
-
-
+			
+			Location* location = Location_Find_By_Userkey(ctxt->db, user->user_key, ctxt->log_config);
+				
 			unsigned int initial_size = 20;
 			Session_Hashtable* session_hashtable_inrange = Session_Hashtable_Create(initial_size);
 			Session_Hashtable* session_hashtable_outofrange = Session_Hashtable_Create(initial_size);
 			
 			
-			Session* session = Session_Create(session_token, user->username, x, y, 
+			Session* session = Session_Create(session_token, user->username, location, 
 							  session_hashtable_inrange, session_hashtable_outofrange, ctxt->sock);
 			Session_Hashtable_Set(ctxt->session_hashtable_username, username, session);
 			Session_Hashtable_Set(ctxt->session_hashtable_token, session_token, session);

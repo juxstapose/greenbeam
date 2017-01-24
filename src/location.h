@@ -1,6 +1,10 @@
 #ifndef _LOCATION_H_
 #define _LOCATION_H_
 
+#define LOC_STARTING_ZONE "starting_zone"
+#define LOC_STARTING_X 0
+#define LOC_STARTING_Y 0
+
 #define ZONENAME_MAX_SIZE 64
 
 typedef struct Location {

@@ -134,7 +134,7 @@ void Session_Hashtable_Print(Session_Hashtable* table) {
 	free(result);
 }
 
-Session_Hashtable* Session_Hashtable_Destroy(Session_Hashtable* session_hashtable) {
+void Session_Hashtable_Destroy(Session_Hashtable* session_hashtable) {
 	//this is slow if the table is big
 	//but should only be used on shutdown
 	int i = 0;
