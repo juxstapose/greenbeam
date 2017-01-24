@@ -23,16 +23,22 @@
 #include "location.h"
 #include "location_table.h"
 #include "pollfd_dynamic_array.h"
-#include "background.h"
+#include "config.h"
+#include "zonerange.h"
 
-ServerContext* ServerContext_Create(sqlite3* db, Socket* sock, 
-		                    Session_Hashtable* session_hashtable_username, 
+ServerContext* ServerContext_Create(sqlite3* db, 
+		                    Socket* sock, 
+		                    Config* config,
+                                    ZoneRange* zonerange,
+				    Session_Hashtable* session_hashtable_username, 
 				    Session_Hashtable* session_hashtable_token, LogConfig* log_config) {		
 	
 	ServerContext* ctxt = (ServerContext*)malloc(sizeof(ServerContext));
 	
 	ctxt->db = db;
 	ctxt->sock = sock;
+	ctxt->config = config;
+	ctxt->zonerange = zonerange;
 	ctxt->session_hashtable_username = session_hashtable_username;
 	ctxt->session_hashtable_token = session_hashtable_token;
 	ctxt->log_config = log_config;
@@ -131,8 +137,14 @@ Socket* Server_Accept(Socket* listener, LogConfig* log_config) {
 }
 
 
-void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listener, sqlite3* db, 
-		               Session_Hashtable* session_hashtable_username, Session_Hashtable* session_hashtable_token, LogConfig* log_config) {
+void Server_Poll_Event_Handler(Config* config, 
+		               ZoneRange* zonerange, 
+			       Socket_Hashtable* sock_hashtable, 
+			       Socket* listener, 
+			       sqlite3* db, 
+		               Session_Hashtable* session_hashtable_username, 
+			       Session_Hashtable* session_hashtable_token, 
+			       LogConfig* log_config) {
 	//struct pollfd* fd_set = calloc(MAX_FD, sizeof(struct pollfd));
 		
 	int connected_socket_id = 0;
@@ -219,7 +231,7 @@ void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listene
 						}
 						//NULL payload
 						if(payload_size == 0) {
-							ServerContext* ctxt = ServerContext_Create(db, sock, session_hashtable_username, 
+							ServerContext* ctxt = ServerContext_Create(db, sock, config, zonerange, session_hashtable_username, 
 												   session_hashtable_token, log_config); 
 							Log_log(log_config, LOG_INFO, "cmd dispatched (%i %i)\n", cmd, proto);
 							unsigned int bytes_sent = ServerCmd_Dispatch(ctxt, header, NULL, cmd, proto);
@@ -240,7 +252,7 @@ void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listene
 								} 
 							}
 							if(payload != NULL) {
-								ServerContext* ctxt = ServerContext_Create(db, sock, session_hashtable_username, 
+								ServerContext* ctxt = ServerContext_Create(db, sock, config, zonerange, session_hashtable_username, 
 													   session_hashtable_token, log_config); 
 								Log_log(log_config, LOG_INFO, "cmd dispatched (%i %i)\n", cmd, proto);
 								unsigned int bytes_sent = ServerCmd_Dispatch(ctxt, header, payload, cmd, proto);
@@ -329,6 +341,30 @@ unsigned int Server_Register_Response_Send(ServerContext* ctxt, unsigned char* h
 	return bytes_sent;	
 }
 
+void Server_Populate_Range_Hashtables(ServerContext* ctxt, 
+		                      Location* location,
+				      Session_Hashtable* session_hashtable_inrange, 
+				      Session_Hashtable* session_hashtable_outofrange) {
+	int x = 0;
+	for(x=0; x<ctxt->session_hashtable_username->size; x++) {	
+		if(ctxt->session_hashtable_username->table[x] != NULL) {
+			Session_List* list = (Session_List*)ctxt->session_hashtable_username->table[x];
+			Session_Node* current = list->head->next;
+			while(current != NULL) {
+				int r = ZoneRange_Is_Location_InRange(ctxt->zonerange, ctxt->config, location, current->session->location, ctxt->log_config);
+				if(r == 1) {
+					Session_Hashtable_Remove(session_hashtable_outofrange, current->string_key); 
+					Session_Hashtable_Set(session_hashtable_inrange, current->string_key, current->session); 
+				} else {
+					Session_Hashtable_Remove(session_hashtable_inrange, current->string_key); 
+					Session_Hashtable_Set(session_hashtable_outofrange, current->string_key, current->session); 
+				}
+				current = current->next;
+			}//end while session list
+		}//end if not null
+	}//end for loop		
+}//end server function
+
 unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* header, unsigned char* payload) {
 
 	Log_log(ctxt->log_config, LOG_DEBUG, "received login packet\n");
@@ -368,11 +404,11 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			//when clients connection breaks or client logs out the session position is saved to DB 
 			
 			Location* location = Location_Find_By_Userkey(ctxt->db, user->user_key, ctxt->log_config);
-				
 			unsigned int initial_size = 20;
 			Session_Hashtable* session_hashtable_inrange = Session_Hashtable_Create(initial_size);
 			Session_Hashtable* session_hashtable_outofrange = Session_Hashtable_Create(initial_size);
 			
+				
 			
 			Session* session = Session_Create(session_token, user->username, location, 
 							  session_hashtable_inrange, session_hashtable_outofrange, ctxt->sock);

@@ -7,11 +7,15 @@
 #include "session_hashtable.h"
 #include "protocol.h"
 #include "log.h"
+#include "config.h"
+#include "zonerange.h"
 
 typedef struct ServerContext {
 	
 	sqlite3* db;
 	Socket* sock;
+	ZoneRange* zonerange;
+	Config* config;
 	Session_Hashtable* session_hashtable_username;
 	Session_Hashtable* session_hashtable_token;
 	LogConfig* log_config;
@@ -31,10 +35,19 @@ typedef struct ServerCmd {
 	cmd_func cmd_func_table[NUM_CMD_MAX][NUM_PROTO_MAX];
 } ServerCmd;
 
-void Server_Poll_Event_Handler(Socket_Hashtable* sock_hashtable, Socket* listener, sqlite3* db, 
-		               Session_Hashtable* session_hashtable_username, Session_Hashtable* session_hashtable_token, LogConfig* log_config);
+void Server_Poll_Event_Handler(Config* config, 
+		               ZoneRange* zonerange, 
+			       Socket_Hashtable* sock_hashtable, 
+			       Socket* listener, 
+			       sqlite3* db, 
+		               Session_Hashtable* session_hashtable_username, 
+			       Session_Hashtable* session_hashtable_token, 
+			       LogConfig* log_config);
 
-ServerContext* ServerContext_Create(sqlite3* db, Socket* sock, 
+ServerContext* ServerContext_Create(sqlite3* db, 
+				    Socket* sock, 
+				    Config* config,
+				    ZoneRange* zonerange,
 				    Session_Hashtable* session_hashtable_username, 
 				    Session_Hashtable* session_hashtable_token,
 				    LogConfig* log_config);
