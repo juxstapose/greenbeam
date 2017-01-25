@@ -15,10 +15,13 @@ typedef struct Session_Hashtable {
 	Session_List** table;
 } Session_Hashtable;
 
+void Session_Hashtable_Calc_Size_Items(Session* session_hashtable, unsigned int *size, unsigned int *num_items); 
+unsigned char* Session_Hashtable_To_Binary(Session* session_hashtable, unsigned int payload_body_size, unsigned int num_items); 
 Session_Hashtable* Session_Hashtable_Create();	
 void Session_Hashtable_Set(Session_Hashtable* session_hashtable, char* key, Session* session);
 Session* Session_Hashtable_Get(Session_Hashtable* session_hashtable, char* key);
 void Session_Hashtable_Remove(Session_Hashtable* session_hashtable, char* key);
+Session_Hashtable* Session_Hashtable_Diff_New(Session_Hashtable* old_table, Session_Hashtable* new_table);
 char* Session_Hashtable_String(Session_Hashtable* session_hashtable);
 void Session_Hashtable_Print(Session_Hashtable* table);
 void Session_Hashtable_Destroy(Session_Hashtable* session_hashtable);

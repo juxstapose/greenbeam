@@ -387,8 +387,8 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 		//is this user logged in already
 		Session* logged_in_session = Session_Hashtable_Get(ctxt->session_hashtable_username, username);
 		if(logged_in_session == NULL) {
-			//create session toke
-			
+
+			//create session token	
 			char session_token[SESSION_LENGTH+1];
 			uint64_t microseconds = Util_Microsecond_Timestamp();
 			unsigned int microsecond_length = Util_Count_Digits64(microseconds);
@@ -405,13 +405,30 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			
 			Location* location = Location_Find_By_Userkey(ctxt->db, user->user_key, ctxt->log_config);
 			unsigned int initial_size = 20;
+			
+			//in range and out of range sessions that are logged in
 			Session_Hashtable* session_hashtable_inrange = Session_Hashtable_Create(initial_size);
 			Session_Hashtable* session_hashtable_outofrange = Session_Hashtable_Create(initial_size);
 			
-				
+			//determine which sessions are in range and which are out of range	
+			Server_Populate_Range_Hashtables(ctxt, 
+		        			         location,
+				      			 session_hashtable_inrange, 
+				      			 session_hashtable_outofrange);
 			
+			char* inrange_str = Session_Hashtable_String(session_hashtable_inrange);	
+			Log_log(ctxt->log_config, LOG_DEBUG, "inrange: %s\n", inrange_str);
+			free(inrange_str);
+			
+			char* outofrange_str = Session_Hashtable_String(session_hashtable_outofrange);	
+			Log_log(ctxt->log_config, LOG_DEBUG, "outofrange: %s\n", outofrange_str);
+			free(outofrange_str);
+			
+			//send load cmds with locations back to client for each session that is in range
+
 			Session* session = Session_Create(session_token, user->username, location, 
 							  session_hashtable_inrange, session_hashtable_outofrange, ctxt->sock);
+			
 			Session_Hashtable_Set(ctxt->session_hashtable_username, username, session);
 			Session_Hashtable_Set(ctxt->session_hashtable_token, session_token, session);
 
@@ -455,27 +472,55 @@ unsigned int Server_Logout_Response_Send(ServerContext* ctxt, unsigned char* hea
 	}	
 	free(session_token);
 	return bytes_sent;
-
 }
+
+void Server_Broadcast_Movement(ServerContext* ctxt, Session* session, unsigned short direction, unsigned short speed, unsigned short frames) {
+	int x = 0;
+	for(x=0; x<session->session_hashtable_inrange->size; x++) {	
+		if(session->session_hashtable_inrange->table[x] != NULL) {
+			Session_List* list = (Session_List*)session->session_hashtable_inrange->table[x];
+			Session_Node* current = list->head->next;
+			while(current != NULL) {
+				Log_log(ctxt->log_config, LOG_DEBUG, "sending %s dir:%i and speed:%i frames:%i on sock id: %i", 
+					current->string_key, direction, speed, frames, current->session->sock->id);
+				
+				unsigned char* data = Protocol_Movement_Broadcast(current->session->session_token, direction, speed, frames);	
+				char* format = Protocol_Get_Format(data);
+				int size_to_send = Binary_Calcsize(format);
+				int bytes_sent = Socket_Send(current->session->sock, data, size_to_send, ctxt->log_config);
+				
+				Log_log(ctxt->log_config, LOG_DEBUG, "bytes sent:%i \n", bytes_sent);
+					
+				current = current->next;
+			}//end while session list
+		}//end if not null
+	}//end for loop		
+}//Server Movement Broadcast
+
+
 unsigned int Server_Movement_Response_Send(ServerContext* ctxt, unsigned char* header, unsigned char* payload) {
 	unsigned short direction = 0;
 	unsigned short speed = 0;
-	unsigned short previous_frames = 0;
-	Protocol_Movement_Send_Payload_Unpack(payload, &direction, &speed, &previous_frames);
-	Log_log(ctxt->log_config, LOG_INFO, "direction: %i speed: %i\n", direction, speed, previous_frames);	
+	unsigned short frames = 0;
+	Protocol_Movement_Send_Payload_Unpack(payload, &direction, &speed, &frames);
+	Log_log(ctxt->log_config, LOG_INFO, "direction: %i speed: %i\n", direction, speed, frames);	
 	
-	Log_log(ctxt->log_config, LOG_DEBUG, "broadcasting direction and speed to all other connected clients within range\n");
 	//lookup session for this session....find coordinates
 	//broadcast direction and speed to close by players
 	//close by is on screen and a bit off screen...camera +- 20%
 	//go through all logged in sessions and see if position is close by
 	
 	unsigned int bytes_sent = 0;
-	Log_log(ctxt->log_config, LOG_DEBUG, "sending movement response\n");
 	char* session_token = (char*)malloc(SESSION_LENGTH + 1);
 	Protocol_Session_Unpack(header, session_token);
 	Session* session = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
 	if(session != NULL) {
+		
+		//broadcast movement changes to in range players
+		Log_log(ctxt->log_config, LOG_DEBUG, "broadcasting direction and speed to all other connected clients within range\n");
+		Server_Broadcast_Movement(ctxt, session, direction, speed, frames);
+
+		Log_log(ctxt->log_config, LOG_DEBUG, "sending movement response\n");
 		unsigned char* data = Protocol_Movement_Response(session_token);
 		char* format = Protocol_Get_Format(data);
 		int size_to_send = Binary_Calcsize(format);
@@ -492,6 +537,9 @@ unsigned int Server_Movement_Response_Send(ServerContext* ctxt, unsigned char* h
 }
 
 
+
+
+
 /**
  * ping sends a x,y position of a client player
  **/
@@ -506,11 +554,44 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 		int current_pos_y = 0;
 		Protocol_Ping_Send_Payload_Unpack(payload, &current_pos_x, &current_pos_y);	
 		
+		session->location->x = current_pos_x;
+		session->location->y = current_pos_y;
 		
-		unsigned char* data = Protocol_Ping_Response(session_token);
+		//populate incoming differences	
+		Session_Hashtable* session_hashtable_inrange = Session_Hashtable_Create(20);
+		Session_Hashtable* session_hashtable_outofrange = Session_Hashtable_Create(20);
+
+		Server_Populate_Range_Hashtables(ctxt, 
+						 session->location,
+						 session_hashtable_inrange, 
+						 session_hashtable_outofrange);
+		
+		
+		//take the difference of the previous ping with the incoming ping...compare keys of the new with the old...add item from the new if its not in the old 
+		//old = [item1 item2 item4 item7] new = [item1 item2 item3]  diff = item3
+		Session_Hashtable* session_hashtable_inrange_diff_new = Session_Hashtable_Diff_New(session->session_hashtable_inrange, session_hashtable_inrange);
+		Session_Hashtable* session_hashtable_outofrange_diff_new = Session_Hashtable_Diff_New(session->session_hashtable_outofrange, session_hashtable_outofrange);
+
+		//send load cmds with locations back to client for each session that is in range
+		//send unload cmds with locations back to client for each session that is in range
+		//inrange [total_size][num_items][username1_size username1 x1 y1 username2_size username2 x2 y2 username3_size username3 x3 y3] 
+		//outofrange [total_size][num_items][username1_size username1 username2_size username2 username3_size username3] 
+	
+		unsigned int inrange_payload_body_size = 0;
+		unsigned int inrange_num_items = 0;		
+		Session_Hashtable_Calc_Size_Items(session_hashtable_inrange_diff_new, &inrange_payload_body_size, &inrange_num_items);
+		unsigned char* inrange_data = Session_Hashtable_To_Binary(session_hashtable_inrange_diff_new, inrange_payload_body_size, inrange_num_items); 
+		
+		unsigned int outofrange_payload_body_size = 0;
+		unsigned int outofrange_num_items = 0;		
+		Session_Hashtable_Calc_Size_Items(session_hashtable_outofrange_diff_new, &outofrange_payload_body_size, &outofrange_num_items);
+		unsigned char* inrange_data = Session_Hashtable_To_Binary(session_hashtable_outofrange_diff_new, outofrange_payload_body_size, outofrange_num_items); 
+
+		unsigned char* data = Protocol_Ping_Response(session_token, inrange_data, outofrange_data);
 		char* format = Protocol_Get_Format(data);
 		int size_to_send = Binary_Calcsize(format);
-		bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config);	
+		bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config);
+
 	} else {	
 		//send error response
 		unsigned char* data = Protocol_Error_Response(session_token, ERR_SESSION_NO_EXIST);

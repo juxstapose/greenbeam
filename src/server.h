@@ -51,6 +51,14 @@ ServerContext* ServerContext_Create(sqlite3* db,
 				    Session_Hashtable* session_hashtable_username, 
 				    Session_Hashtable* session_hashtable_token,
 				    LogConfig* log_config);
+
+void Server_Populate_Range_Hashtables(ServerContext* ctxt, 
+		                      Location* location,
+				      Session_Hashtable* session_hashtable_inrange, 
+				      Session_Hashtable* session_hashtable_outofrange);
+
+void Server_Broadcast_Movement(ServerContext* ctxt, Session* session, unsigned short direction, unsigned short speed, unsigned short frames);
+
 void ServerContext_Destroy(ServerContext* ctxt);
 ServerCmd* ServerCmd_Create();
 void ServerCmd_Destroy(ServerCmd* cmd);

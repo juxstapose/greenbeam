@@ -152,10 +152,10 @@ char* Protocol_Get_Format(unsigned char* data) {
 		return format;
 	}
 	else if(cmd == CMD_MOVEMENT && proto == PROTO_BROADCAST) {
-		int format_size = strlen(HEADER_FORMAT) + 1 + 2;
+		int format_size = strlen(HEADER_FORMAT) + 1 + 3;
 		char* format = (char*)malloc(format_size);
 		memset(format, '\0', format_size);
-		int bytes = sprintf(format, "%sHH", HEADER_FORMAT);
+		int bytes = sprintf(format, "%sHHH", HEADER_FORMAT);
 		free(session_token);
 		return format;
 	}
@@ -329,15 +329,15 @@ unsigned char* Protocol_Movement_Response(char session_token[SESSION_LENGTH+1]) 
 	return result;	
 }
 
-unsigned char* Protocol_Movement_Broadcast(char session_token[SESSION_LENGTH+1], unsigned short direction, unsigned short speed) {
+unsigned char* Protocol_Movement_Broadcast(char session_token[SESSION_LENGTH+1], unsigned short direction, unsigned short speed, unsigned short frames) {
 	
 	char format[128] = {'\0'};	
-	int bytes = sprintf(format, "%sHH", HEADER_FORMAT);
+	int bytes = sprintf(format, "%sHHH", HEADER_FORMAT);
 	
-	int payload_size = sizeof(unsigned short) + sizeof(short);
+	int payload_size = sizeof(unsigned short) + sizeof(unsigned short) + sizeof(unsigned short);
 	//printf("payload_size: %i\n", payload_size);	
 
-	unsigned char* result = Binary_Pack(format, 'S','A', session_token, CMD_MOVEMENT, PROTO_BROADCAST, payload_size, direction, speed);
+	unsigned char* result = Binary_Pack(format, 'S','A', session_token, CMD_MOVEMENT, PROTO_BROADCAST, payload_size, direction, speed, frames);
 	return result;	
 }
 
