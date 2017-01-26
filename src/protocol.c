@@ -299,12 +299,21 @@ unsigned char* Protocol_Login_Send(char* username, char* password) {
 	return result;
 }
 
-unsigned char* Protocol_Login_Response(char session_token[SESSION_LENGTH + 1]) {
+unsigned char* Protocol_Login_Response(char session_token[SESSION_LENGTH + 1],
+		                       unsigned int inrange_size, unsigned char* inrange_data, 
+				       unsigned int outofrange_size, unsigned char* outofrange_data) {
 	char format[128] = {'\0'};	
 	int bytes = sprintf(format, "%s", HEADER_FORMAT);
-	int payload_size = 0;
+	unsigned int header_size = Binary_Calcsize(format);
+	
+	int payload_size = inrange_size + outofrange_size;	
 
-	unsigned char* result = Binary_Pack(format, 'S','A', session_token, CMD_LOGIN, PROTO_RESPONSE, payload_size);
+	unsigned char* header = Binary_Pack(format, 'S','A', session_token, CMD_LOGIN, PROTO_RESPONSE, payload_size);
+	
+	unsigned char* result = (unsigned char*)malloc(header_size + inrange_size + outofrange_size);
+	memcpy(result, header, header_size);
+	memcpy(result + header_size, inrange_data, inrange_size);
+	memcpy(result + header_size + inrange_size, outofrange_data, outofrange_size);
 	
 	return result;	
 }
@@ -366,11 +375,22 @@ unsigned char* Protocol_Ping_Send(char session_token[SESSION_LENGTH+1], int curr
 	return result;
 }
 
-unsigned char* Protocol_Ping_Response(char session_token[SESSION_LENGTH+1]) {
+unsigned char* Protocol_Ping_Response(char session_token[SESSION_LENGTH+1], 
+		                      unsigned int inrange_size, unsigned char* inrange_data, 
+				      unsigned int outofrange_size, unsigned char* outofrange_data) {
+	
 	char format[128] = {'\0'};	
 	int bytes = sprintf(format, "%s", HEADER_FORMAT);
-	int payload_size = 0;	
-	unsigned char* result = Binary_Pack(format, 'S', 'A',  session_token, CMD_PING, PROTO_RESPONSE, payload_size);
+	unsigned int header_size = Binary_Calcsize(format);
+	
+	int payload_size = inrange_size + outofrange_size;	
+	unsigned char* header = Binary_Pack(format, 'S', 'A',  session_token, CMD_PING, PROTO_RESPONSE, payload_size);
+	
+	unsigned char* result = (unsigned char*)malloc(header_size + inrange_size + outofrange_size);
+	memcpy(result, header, header_size);
+	memcpy(result + header_size, inrange_data, inrange_size);
+	memcpy(result + header_size + inrange_size, outofrange_data, outofrange_size);
+
 	return result;
 }
 

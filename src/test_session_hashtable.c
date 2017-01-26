@@ -73,8 +73,6 @@ void Test_Hashtable_Add_Remove() {
 
 }
 
-**/
-
 
 void Test_Hashtable_Collision() {
 	
@@ -167,11 +165,100 @@ void Test_Hashtable_Grow() {
 
 	Session_Hashtable_Destroy(session_hashtable);	
 }
+**/
 
+void Test_Duplicate_Session_Tables() {
+
+	Session_Hashtable* session_hashtable_username = Session_Hashtable_Create(20);
+	Session_Hashtable* session_hashtable_token = Session_Hashtable_Create(20);
+	
+	Location* loc_one =  Location_Create(0, 0, "starting_zone", 667, 90);
+	char* username_one = "jimmy";
+	char* session_token_one = "dfdssgrgesfndjsd3dfs4dwps";
+	Session_Hashtable* session_hashtable_inrange_one = Session_Hashtable_Create(20);
+	Session_Hashtable* session_hashtable_outofrange_one = Session_Hashtable_Create(20);
+	Session* session_one = Session_Create(session_token_one, username_one, loc_one, session_hashtable_inrange_one, session_hashtable_outofrange_one, NULL);
+	
+	Session_Hashtable_Set(session_hashtable_username, username_one, session_one);
+	Session_Hashtable_Set(session_hashtable_token, session_token_one, session_one);
+		
+	Location* loc_two =  Location_Create(0, 0, "starting_zone", 7, 9);
+	char* username_two = "bob";
+	char* session_token_two = "dsfndjsd_threedfs4dwps";
+	Session_Hashtable* session_hashtable_inrange_two = Session_Hashtable_Create(20);
+	Session_Hashtable* session_hashtable_outofrange_two = Session_Hashtable_Create(20);
+	Session_Hashtable_Set(session_hashtable_inrange_two, username_one, session_one);
+	Session* session_two = Session_Create(session_token_two, username_two, loc_two, session_hashtable_inrange_two, session_hashtable_outofrange_two, NULL);
+	
+	Session_Hashtable_Set(session_hashtable_username, username_two, session_two);
+	Session_Hashtable_Set(session_hashtable_token, session_token_two, session_two);
+	
+	Location* loc_three =  Location_Create(0, 0, "starting_zone", 10, 5);
+	char* username_three = "juxstapose";
+	char* session_token_three = "dsfndjsdnfpw3udndwps";
+	Session_Hashtable* session_hashtable_inrange_three = Session_Hashtable_Create(20);
+	Session_Hashtable* session_hashtable_outofrange_three = Session_Hashtable_Create(20);
+	Session_Hashtable_Set(session_hashtable_inrange_three, username_two, session_two);
+	Session_Hashtable_Set(session_hashtable_outofrange_three, username_one, session_one);
+	Session* session_three = Session_Create(session_token_three, username_three, loc_three, session_hashtable_inrange_three, session_hashtable_outofrange_three, NULL);
+	
+	Session_Hashtable_Set(session_hashtable_username, username_three, session_three);
+	Session_Hashtable_Set(session_hashtable_token, session_token_three, session_three);
+	
+	printf("session hashtable username\n");	
+	Session_Hashtable_Print(session_hashtable_username);	
+	printf("session hashtable token\n");	
+	Session_Hashtable_Print(session_hashtable_token);	
+	
+	Session* session_from_username = Session_Hashtable_Get(session_hashtable_username, "juxstapose");	
+	printf("juxstapose session from username hashtable inrange\n");
+	Session_Hashtable_Print(session_from_username->session_table_inrange);
+	
+	Session_Hashtable* new = Session_Hashtable_Create(20);
+	Location* loc_four =  Location_Create(0, 0, "starting_zone", 15, 59);
+	char* username_four = "jum";
+	char* session_token_four = "dsfndjsdnfpw323udndwps";
+	Session_Hashtable* session_hashtable_inrange_four = Session_Hashtable_Create(20);
+	Session_Hashtable* session_hashtable_outofrange_four = Session_Hashtable_Create(20);
+	Session* session_four = Session_Create(session_token_four, username_four, loc_four, session_hashtable_inrange_four, session_hashtable_outofrange_four, NULL);
+	Session_Hashtable_Set(new, username_four, session_four); 
+	
+	
+	Session_Hashtable_Destroy(session_from_username->session_table_inrange);
+	session_from_username->session_table_inrange = NULL;
+
+	printf("juxstapose session from USERNAME hashtable inrange after destroy\n");
+	Session_Hashtable_Print(session_from_username->session_table_inrange);
+	
+	printf("juxstapose session from TOKEN hashtable inrange after destroy\n");
+	Session* session_from_token = Session_Hashtable_Get(session_hashtable_token, "dsfndjsdnfpw3udndwps");
+	Session_Hashtable_Print(session_from_token->session_table_inrange);
+	
+	session_from_username->session_table_inrange = new;
+	printf("juxstapose session from USERNAME hashtable inrange after new reassign\n");
+	Session_Hashtable_Print(session_from_username->session_table_inrange);
+	
+	printf("juxstapose session from TOKEN session hashtable inrange\n");
+	Session_Hashtable_Print(session_from_token->session_table_inrange);
+
+	printf("BEFORE session_from token x:%i\n", session_from_token->location->x);
+	printf("BEFORE session_from token y:%i\n", session_from_token->location->y);
+	
+	session_from_username->location->x = 40;
+	session_from_username->location->y = 60;
+	
+	printf("AFTER session_from token x:%i\n", session_from_token->location->x);
+	printf("AFTER session_from token y:%i\n", session_from_token->location->y);
+	
+	printf("username %p\n", session_from_username);	
+	printf("token %p\n", session_from_token);	
+
+}
 
 int main(int argc, char* argv[]) {
 	//Test_Hashtable_Add_Get();
 	//Test_Hashtable_Add_Remove();
 	//Test_Hashtable_Collision();
-	Test_Hashtable_Grow();
+	//Test_Hashtable_Grow();
+	Test_Duplicate_Session_Tables();
 }

@@ -6,10 +6,11 @@
 #define STRING_MAX_SIZE 128 
 #define LIST_STRING_LENGTH 10000 
 
+typedef struct Session Session;
 
 typedef struct Session_Node {
 	char string_key[STRING_MAX_SIZE];
-	Session* session;
+	struct Session* session;
 	struct Session_Node* next;
 } Session_Node;
 

@@ -432,8 +432,25 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			Session_Hashtable_Set(ctxt->session_hashtable_username, username, session);
 			Session_Hashtable_Set(ctxt->session_hashtable_token, session_token, session);
 
+			//get difference data	
+			unsigned int inrange_payload_body_size = 0;
+			unsigned int inrange_num_items = 0;		
+			Session_Hashtable_Calc_Size_Items(session_hashtable_inrange, &inrange_payload_body_size, &inrange_num_items);
+			unsigned char* inrange_data = Session_Hashtable_To_Binary(session_hashtable_inrange, inrange_payload_body_size, inrange_num_items); 
+			
+			unsigned int outofrange_payload_body_size = 0;
+			unsigned int outofrange_num_items = 0;		
+			Session_Hashtable_Calc_Size_Items(session_hashtable_outofrange, &outofrange_payload_body_size, &outofrange_num_items);
+			unsigned char* outofrange_data = Session_Hashtable_To_Binary(session_hashtable_outofrange, outofrange_payload_body_size, outofrange_num_items); 
+
+			//calc data sizes	
+			unsigned int outofrange_header_size = sizeof(unsigned int) + sizeof(unsigned short);	
+			unsigned int outofrange_data_size = outofrange_header_size + outofrange_payload_body_size * outofrange_num_items;
+			unsigned int inrange_header_size = sizeof(unsigned int) + sizeof(unsigned short);	
+			unsigned int inrange_data_size = inrange_header_size + outofrange_payload_body_size * outofrange_num_items;
+
 			//send in logged in response back to client
-			unsigned char* data = Protocol_Login_Response(session_token);
+			unsigned char* data = Protocol_Login_Response(session_token, inrange_data_size, inrange_data, outofrange_data_size, outofrange_data);
 			char* format = Protocol_Get_Format(data);	
 			unsigned int size_to_send = Binary_Calcsize(format);
 			bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config); 	
@@ -447,8 +464,6 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 		}			
 	}
 	return bytes_sent;
-
-
 }
 
 unsigned int Server_Logout_Response_Send(ServerContext* ctxt, unsigned char* header, unsigned char* payload) {
@@ -548,35 +563,43 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 	int bytes_sent = 0;
 	char* session_token = (char*)malloc(SESSION_LENGTH+1);	
 	Protocol_Session_Unpack(header, session_token);
-	Session* session = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
+	Session* session_from_token = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
 	if(session != NULL) {
+		
 		int current_pos_x = 0;
 		int current_pos_y = 0;
+		
 		Protocol_Ping_Send_Payload_Unpack(payload, &current_pos_x, &current_pos_y);	
 		
-		session->location->x = current_pos_x;
-		session->location->y = current_pos_y;
+		session_from_token->location->x = current_pos_x;
+		session_from_token->location->y = current_pos_y;
 		
 		//populate incoming differences	
 		Session_Hashtable* session_hashtable_inrange = Session_Hashtable_Create(20);
 		Session_Hashtable* session_hashtable_outofrange = Session_Hashtable_Create(20);
 
 		Server_Populate_Range_Hashtables(ctxt, 
-						 session->location,
+						 session_from_token->location,
 						 session_hashtable_inrange, 
 						 session_hashtable_outofrange);
 		
 		
 		//take the difference of the previous ping with the incoming ping...compare keys of the new with the old...add item from the new if its not in the old 
-		//old = [item1 item2 item4 item7] new = [item1 item2 item3]  diff = item3
-		Session_Hashtable* session_hashtable_inrange_diff_new = Session_Hashtable_Diff_New(session->session_hashtable_inrange, session_hashtable_inrange);
-		Session_Hashtable* session_hashtable_outofrange_diff_new = Session_Hashtable_Diff_New(session->session_hashtable_outofrange, session_hashtable_outofrange);
+		//old = [item1 item2 item4 item7] new = [item1 item2 item3]  new diff = item3 | old diff = item4, item7
+		Session_Hashtable* session_hashtable_inrange_diff_new = Session_Hashtable_Diff_New(session_from_token->session_hashtable_inrange, session_hashtable_inrange);
+		Session_Hashtable* session_hashtable_outofrange_diff_new = Session_Hashtable_Diff_New(session_from_token->session_hashtable_outofrange, session_hashtable_outofrange);
+		
+		Session_Hashtable_Destroy(session_from_token->session_hashtable_inrange);
+		session_from_token->session_hashtable_inrange = session_hashtable_inrange;
+		Session_Hashtable_Destroy(session_from_token->session_hashtable_outofrange);
+		session_from_token->session_hashtable_outofrange = session_hashtable_outofrange;
 
 		//send load cmds with locations back to client for each session that is in range
 		//send unload cmds with locations back to client for each session that is in range
 		//inrange [total_size][num_items][username1_size username1 x1 y1 username2_size username2 x2 y2 username3_size username3 x3 y3] 
 		//outofrange [total_size][num_items][username1_size username1 username2_size username2 username3_size username3] 
-	
+		
+		//get difference data	
 		unsigned int inrange_payload_body_size = 0;
 		unsigned int inrange_num_items = 0;		
 		Session_Hashtable_Calc_Size_Items(session_hashtable_inrange_diff_new, &inrange_payload_body_size, &inrange_num_items);
@@ -585,12 +608,29 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 		unsigned int outofrange_payload_body_size = 0;
 		unsigned int outofrange_num_items = 0;		
 		Session_Hashtable_Calc_Size_Items(session_hashtable_outofrange_diff_new, &outofrange_payload_body_size, &outofrange_num_items);
-		unsigned char* inrange_data = Session_Hashtable_To_Binary(session_hashtable_outofrange_diff_new, outofrange_payload_body_size, outofrange_num_items); 
-
-		unsigned char* data = Protocol_Ping_Response(session_token, inrange_data, outofrange_data);
+		unsigned char* outofrange_data = Session_Hashtable_To_Binary(session_hashtable_outofrange_diff_new, outofrange_payload_body_size, outofrange_num_items); 
+		
+		//calc data sizes	
+		unsigned int outofrange_header_size = sizeof(unsigned int) + sizeof(unsigned short);	
+		unsigned int outofrange_data_size = outofrange_header_size + outofrange_payload_body_size * outofrange_num_items;
+		unsigned int inrange_header_size = sizeof(unsigned int) + sizeof(unsigned short);	
+		unsigned int inrange_data_size = inrange_header_size + outofrange_payload_body_size * outofrange_num_items;
+		
+		//send data
+		unsigned char* data = Protocol_Ping_Response(session_token, inrange_data_size, inrange_data, outofrange_data_size, outofrange_data);
 		char* format = Protocol_Get_Format(data);
 		int size_to_send = Binary_Calcsize(format);
 		bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config);
+		
+
+		//cleanup	
+		Session_Hashtable_Destroy(session_hashtable_inrange_diff_new);
+		session_hashtable_inrange_diff_new = NULL;
+		Session_Hashtable_Destroy(session_hashtable_outofrange_diff_new);
+		session_hashtable_outofrange_diff_new = NULL;
+		
+		free(inrange_data);
+		free(outofrange_data);
 
 	} else {	
 		//send error response

@@ -2,11 +2,12 @@
 #define _SESSION_H_
 
 #include "location.h"
-#include "session_hashtable.h"
 #include "sock.h"
 #include "protocol.h"
+#include "session_hashtable.h"
 
 #define SESSION_MAX_STRING_OUTPUT_SIZE 1024
+
 
 typedef struct Session {
 	char username[USERNAME_LENGTH + 1];

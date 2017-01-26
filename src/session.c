@@ -1,9 +1,10 @@
+#include "session.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include "location.h"
 #include "sock.h"
-#include "session.h"
+#include "session_hashtable.h"
 
 Session* Session_Create(char* session_token, char* username, Location* location, 
 			Session_Hashtable* session_table_inrange, Session_Hashtable* session_table_outofrange, Socket* sock) {
@@ -26,13 +27,17 @@ Session* Session_Create(char* session_token, char* username, Location* location,
 
 void Session_Destroy(Session* session) {
 	if(session != NULL) {
+		Location_Destroy(session->location);
+		Session_Hashtable_Destroy(session->session_table_inrange);
+		Session_Hashtable_Destroy(session->session_table_outofrange);
+		Socket_Destroy(session->sock);
 		free(session);
 	}
 }
 
 char* Session_String(Session* session) {
 	char temp[SESSION_MAX_STRING_OUTPUT_SIZE] = {'\0'};
-	int bytes = sprintf(temp, "{%s %s (%i,%i)}", session->session_token, session->username, session->current_pos_x, session->current_pos_y);	
+	int bytes = sprintf(temp, "{%s %s (%i,%i)}", session->session_token, session->username, session->location->x, session->location->y);	
 	char* result = (char*)malloc(bytes);	
 	strcpy(result, temp);
 	return result;

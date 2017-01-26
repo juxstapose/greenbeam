@@ -15,9 +15,10 @@ typedef struct Session_Hashtable {
 	Session_List** table;
 } Session_Hashtable;
 
-void Session_Hashtable_Calc_Size_Items(Session* session_hashtable, unsigned int *size, unsigned int *num_items); 
-unsigned char* Session_Hashtable_To_Binary(Session* session_hashtable, unsigned int payload_body_size, unsigned int num_items); 
-Session_Hashtable* Session_Hashtable_Create();	
+void Session_Hashtable_Calc_Size_Items(Session_Hashtable* session_hashtable, unsigned int *size, unsigned int *num_items); 
+unsigned char* Session_Hashtable_To_Binary(Session_Hashtable* session_hashtable, unsigned int payload_body_size, unsigned int num_items);
+Session_Hashtable* Binary_To_Session_Hashtable(char* session_token, unsigned char* data);
+Session_Hashtable* Session_Hashtable_Create(unsigned int init_size);	
 void Session_Hashtable_Set(Session_Hashtable* session_hashtable, char* key, Session* session);
 Session* Session_Hashtable_Get(Session_Hashtable* session_hashtable, char* key);
 void Session_Hashtable_Remove(Session_Hashtable* session_hashtable, char* key);

@@ -41,7 +41,9 @@ unsigned char* Protocol_Movement_Broadcast(char session_token[SESSION_LENGTH+1],
 unsigned char* Protocol_Logout_Send(char session_token[SESSION_LENGTH+1]);
 unsigned char* Protocol_Logout_Response(char session_token[SESSION_LENGTH+1]);
 unsigned char* Protocol_Ping_Send(char session_token[SESSION_LENGTH+1], int current_pos_x, int current_pos_y);
-unsigned char* Protocol_Ping_Response(char session_token[SESSION_LENGTH+1]);
+unsigned char* Protocol_Ping_Response(char session_token[SESSION_LENGTH+1], 
+		                      unsigned int inrange_size, unsigned char* inrange_data, 
+				      unsigned int outofrange_size, unsigned char* outofrange_data);
 unsigned char* Protocol_Error_Response(char session_token[SESSION_LENGTH+1], unsigned short error_code);
 unsigned char* Protocol_Shutdown_Send();
 unsigned char* Protocol_Shutdown_Response();

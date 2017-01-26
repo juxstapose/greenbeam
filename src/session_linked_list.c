@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "session.h"
 #include "session_linked_list.h"
 
 Session_Node* Session_Node_Create(char* string_key, Session* session) {
@@ -19,8 +20,7 @@ void Session_Node_Destroy(Session_Node* node) {
 
 Session_List* Session_List_Create() {
 	Session_List* list = (Session_List*)malloc(sizeof(Session_List));
-	Session* session = Session_Create(NULL, NULL, NULL, NULL, 0, 0, NULL);
-	list->head = Session_Node_Create(NULL, session);
+	list->head = Session_Node_Create(NULL, NULL);
 	list->current = list->head;
 	return list;
 }
