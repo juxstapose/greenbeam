@@ -4,6 +4,7 @@
 #include "config.h"
 #include "location.h"
 #include "log.h"
+#include "SDL2/SDL.h"
 
 typedef struct ZoneRange {
 	float rect_percentage;

@@ -8,13 +8,14 @@
 
 #define SESSION_MAX_STRING_OUTPUT_SIZE 1024
 
+typedef struct Session_Hashtable Session_Hashtable;
 
 typedef struct Session {
 	char username[USERNAME_LENGTH + 1];
 	char session_token[SESSION_LENGTH +1];
 	Location* location;
-	Session_Hashtable* session_table_inrange;
-	Session_Hashtable* session_table_outofrange;
+	struct Session_Hashtable* session_table_inrange;
+	struct Session_Hashtable* session_table_outofrange;
 	Socket* sock;
 } Session;
 

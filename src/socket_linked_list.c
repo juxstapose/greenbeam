@@ -98,8 +98,8 @@ char* Socket_List_String_Keys(Socket_List* list) {
 	char closing_char = ']';
 	char delimiter = ' ';
 	int size = Socket_List_Size(list);
-	if(sizeof(int) * size > LIST_STRING_LENGTH) {
-		fprintf(stderr, "output string to large %i > %i\n", sizeof(int)*size, LIST_STRING_LENGTH);
+	if(sizeof(int) * size > SOCKET_LIST_STRING_LENGTH) {
+		fprintf(stderr, "output string to large %i > %i\n", sizeof(int)*size, SOCKET_LIST_STRING_LENGTH);
 		return NULL;
 	}
 	//account for spaces

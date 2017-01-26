@@ -129,7 +129,6 @@ void Server_Run(char* ip_address, char* port) {
 
 }
 
-
 unsigned char* Shutdown(Socket* sock, LogConfig* main_log_config, LogConfig* thread_log_config) {
 	if(sock != NULL) {	
 		Queue* queue = Queue_Create();
@@ -144,10 +143,8 @@ unsigned char* Shutdown(Socket* sock, LogConfig* main_log_config, LogConfig* thr
 	}
 }
 
-
 unsigned char* Register(Socket* sock, char* username, char* password, char* email, 
 		        LogConfig* main_log_config, LogConfig* thread_log_config) {
-
 	
 	Log_log(main_log_config, LOG_DEBUG, "sending initial registration data\n");
 	unsigned char* data = NULL;
@@ -162,7 +159,6 @@ unsigned char* Register(Socket* sock, char* username, char* password, char* emai
 		int receive_thread_ret = pthread_create(&receive_thread, NULL, receive_handler, (void*)ctxt);
 		
 		int bytes_sent = Client_Register_Send(ctxt, username, password, email);
-		
 		
 		//empty receive queue
 		Log_log(main_log_config, LOG_DEBUG, "peek at queue for data\n");
@@ -934,14 +930,14 @@ void Test_Ping_Send_Response(char* ip_address, char* port, LogConfig* main_log_c
 
 int main(int argc, char* argv[]) {	
 	
-	LogConfig* main_log_config = LogConfig_Create("test_main_log.txt", 
+	LogConfig* main_log_config = LogConfig_Create("log_main.txt", 
 							 LOG_ON,
 							 LOG_FILE,
 							 LOG_DEBUG,
 							 1000000, 
 							 5);
 
-	LogConfig* thread_log_config = LogConfig_Create("test_thread_log.txt", 
+	LogConfig* thread_log_config = LogConfig_Create("log_thread.txt", 
 							 LOG_ON,
 							 LOG_FILE,
 							 LOG_DEBUG,
@@ -949,9 +945,9 @@ int main(int argc, char* argv[]) {
 							 5);
 	char* ip_address = "192.168.0.2";
 	char* port = "57132";
-	//Test_Register_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	Test_Register_Send_Response(ip_address, port, main_log_config, thread_log_config);
 	//Test_Login_Send_Response(ip_address, port, main_log_config, thread_log_config);
-	Test_Logout_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	//Test_Logout_Send_Response(ip_address, port, main_log_config, thread_log_config);
 	//Test_Ping_Send_Response(ip_address, port, main_log_config, thread_log_config);
 		
 	return 0;

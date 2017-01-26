@@ -34,7 +34,9 @@ int Protocol_Is_Cmd_Valid(unsigned short cmd, unsigned short proto);
 unsigned char* Protocol_Register_Send(char* username, char* password, char* email);
 unsigned char* Protocol_Register_Response();
 unsigned char* Protocol_Login_Send(char username[USERNAME_LENGTH+1], char password[PASSWORD_LENGTH+1]);
-unsigned char* Protocol_Login_Response(char session_token[SESSION_LENGTH + 1]);
+unsigned char* Protocol_Login_Response(char session_token[SESSION_LENGTH + 1],
+		                       unsigned int inrange_size, unsigned char* inrange_data, 
+				       unsigned int outofrange_size, unsigned char* outofrange_data);
 unsigned char* Protocol_Movement_Send(char session_token[SESSION_LENGTH+1], unsigned short direction, unsigned short speed, unsigned short frames);
 unsigned char* Protocol_Movement_Response(char session_token[SESSION_LENGTH+1]);
 unsigned char* Protocol_Movement_Broadcast(char session_token[SESSION_LENGTH+1], unsigned short direction, unsigned short speed, unsigned short frames);

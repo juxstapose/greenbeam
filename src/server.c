@@ -318,7 +318,7 @@ unsigned int Server_Register_Response_Send(ServerContext* ctxt, unsigned char* h
 	
 	unsigned int bytes_sent = 0;
 	if(user == NULL) {
-		User* new_user = User_Create(username, password, email);
+		User* new_user = User_Create(0, username, password, email);
 		User_Insert(ctxt->db, new_user, ctxt->log_config);
 		User* user_inserted = User_Find_By_Username(ctxt->db, username, ctxt->log_config);
 		if(user_inserted != NULL) {
@@ -387,7 +387,10 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 		//is this user logged in already
 		Session* logged_in_session = Session_Hashtable_Get(ctxt->session_hashtable_username, username);
 		if(logged_in_session == NULL) {
+				
 
+			
+			Log_log(ctxt->log_config, LOG_DEBUG, "create session token\n");
 			//create session token	
 			char session_token[SESSION_LENGTH+1];
 			uint64_t microseconds = Util_Microsecond_Timestamp();
@@ -404,12 +407,14 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			//when clients connection breaks or client logs out the session position is saved to DB 
 			
 			Location* location = Location_Find_By_Userkey(ctxt->db, user->user_key, ctxt->log_config);
+			Log_log(ctxt->log_config, LOG_DEBUG, "find associated location: %p\n", location);
 			unsigned int initial_size = 20;
 			
 			//in range and out of range sessions that are logged in
 			Session_Hashtable* session_hashtable_inrange = Session_Hashtable_Create(initial_size);
 			Session_Hashtable* session_hashtable_outofrange = Session_Hashtable_Create(initial_size);
 			
+			Log_log(ctxt->log_config, LOG_DEBUG, "populate inrange and out of range hashtables\n");
 			//determine which sessions are in range and which are out of range	
 			Server_Populate_Range_Hashtables(ctxt, 
 		        			         location,
@@ -426,18 +431,24 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			
 			//send load cmds with locations back to client for each session that is in range
 
+			Log_log(ctxt->log_config, LOG_DEBUG, "create session\n");
 			Session* session = Session_Create(session_token, user->username, location, 
 							  session_hashtable_inrange, session_hashtable_outofrange, ctxt->sock);
 			
 			Session_Hashtable_Set(ctxt->session_hashtable_username, username, session);
 			Session_Hashtable_Set(ctxt->session_hashtable_token, session_token, session);
 
+			
+			
+			
+			Log_log(ctxt->log_config, LOG_DEBUG, "get binary form of in range hashtable\n");
 			//get difference data	
 			unsigned int inrange_payload_body_size = 0;
 			unsigned int inrange_num_items = 0;		
 			Session_Hashtable_Calc_Size_Items(session_hashtable_inrange, &inrange_payload_body_size, &inrange_num_items);
 			unsigned char* inrange_data = Session_Hashtable_To_Binary(session_hashtable_inrange, inrange_payload_body_size, inrange_num_items); 
 			
+			Log_log(ctxt->log_config, LOG_DEBUG, "get binary form of out of range hashtable\n");
 			unsigned int outofrange_payload_body_size = 0;
 			unsigned int outofrange_num_items = 0;		
 			Session_Hashtable_Calc_Size_Items(session_hashtable_outofrange, &outofrange_payload_body_size, &outofrange_num_items);
@@ -448,7 +459,9 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			unsigned int outofrange_data_size = outofrange_header_size + outofrange_payload_body_size * outofrange_num_items;
 			unsigned int inrange_header_size = sizeof(unsigned int) + sizeof(unsigned short);	
 			unsigned int inrange_data_size = inrange_header_size + outofrange_payload_body_size * outofrange_num_items;
-
+				
+			Log_log(ctxt->log_config, LOG_DEBUG, "sending data with session token: %s - inrange size: %i outofrange size: %i\n", session_token, inrange_data_size, outofrange_data_size);
+			
 			//send in logged in response back to client
 			unsigned char* data = Protocol_Login_Response(session_token, inrange_data_size, inrange_data, outofrange_data_size, outofrange_data);
 			char* format = Protocol_Get_Format(data);	
@@ -491,9 +504,9 @@ unsigned int Server_Logout_Response_Send(ServerContext* ctxt, unsigned char* hea
 
 void Server_Broadcast_Movement(ServerContext* ctxt, Session* session, unsigned short direction, unsigned short speed, unsigned short frames) {
 	int x = 0;
-	for(x=0; x<session->session_hashtable_inrange->size; x++) {	
-		if(session->session_hashtable_inrange->table[x] != NULL) {
-			Session_List* list = (Session_List*)session->session_hashtable_inrange->table[x];
+	for(x=0; x<session->session_table_inrange->size; x++) {	
+		if(session->session_table_inrange->table[x] != NULL) {
+			Session_List* list = (Session_List*)session->session_table_inrange->table[x];
 			Session_Node* current = list->head->next;
 			while(current != NULL) {
 				Log_log(ctxt->log_config, LOG_DEBUG, "sending %s dir:%i and speed:%i frames:%i on sock id: %i", 
@@ -564,7 +577,7 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 	char* session_token = (char*)malloc(SESSION_LENGTH+1);	
 	Protocol_Session_Unpack(header, session_token);
 	Session* session_from_token = Session_Hashtable_Get(ctxt->session_hashtable_token, session_token); 
-	if(session != NULL) {
+	if(session_from_token != NULL) {
 		
 		int current_pos_x = 0;
 		int current_pos_y = 0;
@@ -586,13 +599,13 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 		
 		//take the difference of the previous ping with the incoming ping...compare keys of the new with the old...add item from the new if its not in the old 
 		//old = [item1 item2 item4 item7] new = [item1 item2 item3]  new diff = item3 | old diff = item4, item7
-		Session_Hashtable* session_hashtable_inrange_diff_new = Session_Hashtable_Diff_New(session_from_token->session_hashtable_inrange, session_hashtable_inrange);
-		Session_Hashtable* session_hashtable_outofrange_diff_new = Session_Hashtable_Diff_New(session_from_token->session_hashtable_outofrange, session_hashtable_outofrange);
+		Session_Hashtable* session_hashtable_inrange_diff_new = Session_Hashtable_Diff_New(session_from_token->session_table_inrange, session_hashtable_inrange);
+		Session_Hashtable* session_hashtable_outofrange_diff_new = Session_Hashtable_Diff_New(session_from_token->session_table_outofrange, session_hashtable_outofrange);
 		
-		Session_Hashtable_Destroy(session_from_token->session_hashtable_inrange);
-		session_from_token->session_hashtable_inrange = session_hashtable_inrange;
-		Session_Hashtable_Destroy(session_from_token->session_hashtable_outofrange);
-		session_from_token->session_hashtable_outofrange = session_hashtable_outofrange;
+		Session_Hashtable_Destroy(session_from_token->session_table_inrange);
+		session_from_token->session_table_inrange = session_hashtable_inrange;
+		Session_Hashtable_Destroy(session_from_token->session_table_outofrange);
+		session_from_token->session_table_outofrange = session_hashtable_outofrange;
 
 		//send load cmds with locations back to client for each session that is in range
 		//send unload cmds with locations back to client for each session that is in range

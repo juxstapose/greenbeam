@@ -86,14 +86,14 @@ char* Session_List_String_Keys(Session_List* list) {
 	char closing_char = ']';
 	char delimiter = ' ';
 	int size = Session_List_Size(list);
-	if(STRING_MAX_SIZE * size > LIST_STRING_LENGTH) {
-		fprintf(stderr, "output string to large %i > %i\n", STRING_MAX_SIZE*size, LIST_STRING_LENGTH);
+	if(SESSION_STRING_MAX_SIZE * size > SESSION_LIST_STRING_LENGTH) {
+		fprintf(stderr, "output string to large %i > %i\n", SESSION_STRING_MAX_SIZE*size, SESSION_LIST_STRING_LENGTH);
 		return NULL;
 	}
 	//account for spaces
 	int space_size = size - 1;
 	int brackets_offset = 2;
-	char* result = (char*)malloc( (STRING_MAX_SIZE*size) + space_size + brackets_offset);
+	char* result = (char*)malloc( (SESSION_STRING_MAX_SIZE*size) + space_size + brackets_offset);
 	int bytes = 0;
 	int total_bytes = 0;
 	int i = 0;

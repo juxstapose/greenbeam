@@ -8,8 +8,15 @@
 #include "server.h"
 #include "socket_hashtable.h"
 #include "session_hashtable.h"
-#include "user_database.h"
+#include "database.h"
+#include "user_table.h"
 #include "arguments.h"
+
+#ifdef main
+#undef main
+#endif
+
+
 
 int main(int argc, char* argv[]) {
 	char ip_address[NI_MAXHOST+1] = {'\0'};
@@ -33,9 +40,9 @@ int main(int argc, char* argv[]) {
 						 100000000, 
 						 5);
 
-	sqlite3* db = User_Database_Open(db_name, log_config);
+	sqlite3* db = Database_Open(db_name, log_config);
 	if(empty_db == 1) {
-		User_Drop_Table(db, "user", log_config);
+		Database_Drop_Table(db, "user", log_config);
 	}
 	User_Create_Table(db, log_config);
 	
@@ -46,8 +53,8 @@ int main(int argc, char* argv[]) {
 	ZoneRange* zonerange = ZoneRange_Create(rect_percentage);
 	
 	Socket_Hashtable* sock_hashtable = Socket_Hashtable_Create();
-	Session_Hashtable* session_hashtable_username = Session_Hashtable_Create();
-	Session_Hashtable* session_hashtable_token = Session_Hashtable_Create();
+	Session_Hashtable* session_hashtable_username = Session_Hashtable_Create(20);
+	Session_Hashtable* session_hashtable_token = Session_Hashtable_Create(20);
 	
 	Log_log(log_config, LOG_INFO, "create socket and bind an listen on %s with port %s\n", ip_address, port);
 	Socket* listener = Server_Bind_Listen(ip_address, port, log_config);
@@ -63,7 +70,7 @@ int main(int argc, char* argv[]) {
 	Session_Hashtable_Destroy(session_hashtable_username);	
 	Session_Hashtable_Destroy(session_hashtable_token);	
 	Socket_Destroy(listener);	
-	User_Database_Close(db, log_config);
+	Database_Close(db, log_config);
 	LogConfig_Destroy(log_config);
 	return 0;	
 }

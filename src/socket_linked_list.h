@@ -3,7 +3,7 @@
 
 #include "sock.h"
 
-#define LIST_STRING_LENGTH 10000 
+#define SOCKET_LIST_STRING_LENGTH 100000 
 
 typedef struct Socket_Node {
 	int fd_id;
