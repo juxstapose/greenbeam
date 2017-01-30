@@ -116,7 +116,7 @@ void* receive_handler(void* arg) {
 void Server_Run(char* ip_address, char* port) { 
 
 	char* args[8] = {'\0'};
-	args[0] = "./server";
+	args[0] = "./test_server";
 	args[1] = "--ip_address";
 	args[2] = ip_address;
 	args[3] = "--port";
@@ -398,6 +398,7 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	unsigned short proto = 0;
 	unsigned int payload_size = 0;	
 	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	unsigned int header_size = Binary_Calcsize(HEADER_FORMAT);
 	unsigned short error_code = 0;
 	Protocol_Error_Response_Payload_Unpack(data+header_size, &error_code);
@@ -411,6 +412,7 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	Log_log(main_log_config, LOG_INFO, "registering\n");
 	data = Register(sock, username, hidden_password, email, main_log_config, thread_log_config);
 	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 2 register response passed\n");
 	}
@@ -419,6 +421,7 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	Log_log(main_log_config, LOG_INFO, "logging in\n");
 	data = Login(sock, username, hidden_password, main_log_config, thread_log_config);
 	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	if(cmd == CMD_LOGIN && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 3 login response passed\n");
 	}
@@ -430,6 +433,7 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
 	header_size = Binary_Calcsize(HEADER_FORMAT);
 	Protocol_Error_Response_Payload_Unpack(data+header_size, &error_code);
+	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	Log_log(main_log_config, LOG_INFO, "error code: %i\n", error_code);
 	if(cmd == CMD_ERROR && proto == PROTO_RESPONSE && error_code == ERR_LOGIN_AGAIN) {
 		Log_log(main_log_config, LOG_INFO, "test 4 login error response passed\n");
@@ -945,8 +949,8 @@ int main(int argc, char* argv[]) {
 							 5);
 	char* ip_address = "192.168.0.2";
 	char* port = "57132";
-	Test_Register_Send_Response(ip_address, port, main_log_config, thread_log_config);
-	//Test_Login_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	//Test_Register_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	Test_Login_Send_Response(ip_address, port, main_log_config, thread_log_config);
 	//Test_Logout_Send_Response(ip_address, port, main_log_config, thread_log_config);
 	//Test_Ping_Send_Response(ip_address, port, main_log_config, thread_log_config);
 		

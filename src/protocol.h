@@ -13,7 +13,7 @@
 #define PROTO_RESPONSE 1
 #define PROTO_BROADCAST 2
 
-#define NUM_CMD_MAX 6
+#define NUM_CMD_MAX 7
 #define NUM_PROTO_MAX 3
 
 #define ERR_REG 0
@@ -21,8 +21,6 @@
 #define ERR_LOGIN_AGAIN 2
 #define ERR_SESSION_NO_EXIST 3
 
-#define HEADER_FORMAT "!2b65sHHI"
-#define FORMAT_LENGTH 128
 
 #define SESSION_LENGTH 64
 #define USERNAME_LENGTH 32

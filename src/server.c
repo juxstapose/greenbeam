@@ -323,6 +323,7 @@ unsigned int Server_Register_Response_Send(ServerContext* ctxt, unsigned char* h
 		User* user_inserted = User_Find_By_Username(ctxt->db, username, ctxt->log_config);
 		if(user_inserted != NULL) {
 			Location* location = Location_Create(0, user_inserted->user_key, LOC_STARTING_ZONE, LOC_STARTING_X, LOC_STARTING_Y);
+			Log_log(ctxt->log_config, LOG_DEBUG, "location: %p\n", location);
 			Location_Insert(ctxt->db, location, ctxt->log_config);
 		}
 		//send response back that user has been registered
@@ -387,9 +388,6 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 		//is this user logged in already
 		Session* logged_in_session = Session_Hashtable_Get(ctxt->session_hashtable_username, username);
 		if(logged_in_session == NULL) {
-				
-
-			
 			Log_log(ctxt->log_config, LOG_DEBUG, "create session token\n");
 			//create session token	
 			char session_token[SESSION_LENGTH+1];
@@ -438,27 +436,25 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			Session_Hashtable_Set(ctxt->session_hashtable_username, username, session);
 			Session_Hashtable_Set(ctxt->session_hashtable_token, session_token, session);
 
-			
-			
-			
 			Log_log(ctxt->log_config, LOG_DEBUG, "get binary form of in range hashtable\n");
 			//get difference data	
 			unsigned int inrange_payload_body_size = 0;
 			unsigned int inrange_num_items = 0;		
 			Session_Hashtable_Calc_Size_Items(session_hashtable_inrange, &inrange_payload_body_size, &inrange_num_items);
+			Log_log(ctxt->log_config, LOG_DEBUG, "in range payload body size: %i inrange num_items:%i\n", inrange_payload_body_size, inrange_num_items);
 			unsigned char* inrange_data = Session_Hashtable_To_Binary(session_hashtable_inrange, inrange_payload_body_size, inrange_num_items); 
 			
 			Log_log(ctxt->log_config, LOG_DEBUG, "get binary form of out of range hashtable\n");
 			unsigned int outofrange_payload_body_size = 0;
 			unsigned int outofrange_num_items = 0;		
 			Session_Hashtable_Calc_Size_Items(session_hashtable_outofrange, &outofrange_payload_body_size, &outofrange_num_items);
+			Log_log(ctxt->log_config, LOG_DEBUG, "out of range payload body size: %i out of range num_items:%i\n", outofrange_payload_body_size, outofrange_num_items);
 			unsigned char* outofrange_data = Session_Hashtable_To_Binary(session_hashtable_outofrange, outofrange_payload_body_size, outofrange_num_items); 
-
 			//calc data sizes	
 			unsigned int outofrange_header_size = sizeof(unsigned int) + sizeof(unsigned short);	
-			unsigned int outofrange_data_size = outofrange_header_size + outofrange_payload_body_size * outofrange_num_items;
+			unsigned int outofrange_data_size = outofrange_header_size + outofrange_payload_body_size;
 			unsigned int inrange_header_size = sizeof(unsigned int) + sizeof(unsigned short);	
-			unsigned int inrange_data_size = inrange_header_size + outofrange_payload_body_size * outofrange_num_items;
+			unsigned int inrange_data_size = inrange_header_size + outofrange_payload_body_size;
 				
 			Log_log(ctxt->log_config, LOG_DEBUG, "sending data with session token: %s - inrange size: %i outofrange size: %i\n", session_token, inrange_data_size, outofrange_data_size);
 			
@@ -466,6 +462,8 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			unsigned char* data = Protocol_Login_Response(session_token, inrange_data_size, inrange_data, outofrange_data_size, outofrange_data);
 			char* format = Protocol_Get_Format(data);	
 			unsigned int size_to_send = Binary_Calcsize(format);
+			//printf("size to send:%i == size: %i\n", size_to_send, (Binary_Calcsize(HEADER_FORMAT) + inrange_data_size + outofrange_data_size));
+			Log_log(ctxt->log_config, LOG_DEBUG, "size to send:%i == size: %i\n", size_to_send, (Binary_Calcsize(HEADER_FORMAT) + inrange_data_size + outofrange_data_size));
 			bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config); 	
 
 		} else {

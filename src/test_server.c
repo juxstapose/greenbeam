@@ -10,6 +10,7 @@
 #include "session_hashtable.h"
 #include "database.h"
 #include "user_table.h"
+#include "location_table.h"
 #include "arguments.h"
 
 #ifdef main
@@ -43,8 +44,10 @@ int main(int argc, char* argv[]) {
 	sqlite3* db = Database_Open(db_name, log_config);
 	if(empty_db == 1) {
 		Database_Drop_Table(db, "user", log_config);
+		Database_Drop_Table(db, "location", log_config);
 	}
 	User_Create_Table(db, log_config);
+	Location_Create_Table(db, log_config);
 	
 	Config* config = Config_Create();
 	Config_Read_File(config, "config.ini", log_config);
