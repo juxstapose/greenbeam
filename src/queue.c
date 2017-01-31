@@ -3,6 +3,7 @@
 #include "queue.h"
 #include "pack.h"
 #include "protocol.h"
+#include "protocol_format.h"
 
 
 Queue* Queue_Create() {
@@ -59,7 +60,7 @@ void Queue_Print(Queue* queue) {
 	while(temp != NULL) {
 		printf("temp: %p\n", temp);
 		printf("temp->next: %p\n", temp->next);
-		char* format = Protocol_Get_Format(temp->data);
+		char* format = Protocol_Format_Get(temp->data);
 		printf("%s\n", format);
 		Binary_Print(format, temp->data);
 		free(format);

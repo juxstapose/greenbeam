@@ -171,7 +171,7 @@ unsigned char* Protocol_Logout_Response(char session_token[SESSION_LENGTH+1]) {
 
 unsigned char* Protocol_Ping_Send(char session_token[SESSION_LENGTH+1], int current_pos_x, int current_pos_y) {
 	char format[128] = {'\0'};	
-	int bytes = sprintf(format, "%sii", HEADER_FORMAT, current_pos_x, current_pos_y);
+	int bytes = sprintf(format, "%sii", HEADER_FORMAT);
 	int payload_size = sizeof(int) + sizeof(int);	
 	unsigned char* result = Binary_Pack(format, 'S', 'A',  session_token, CMD_PING, PROTO_SEND, payload_size, current_pos_x, current_pos_y);
 	return result;

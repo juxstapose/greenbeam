@@ -268,10 +268,10 @@ char* Protocol_Format_Error_Response(unsigned char* data) {
 }
 
 char* Protocol_Format_Ping_Send(unsigned char* data) {
-	int format_size = strlen(HEADER_FORMAT) + 1;
+	int format_size = strlen(HEADER_FORMAT) + 2 + 1;
 	char* format = (char*)malloc(format_size);
 	memset(format, '\0', format_size);
-	int bytes = sprintf(format, "%s", HEADER_FORMAT);
+	int bytes = sprintf(format, "%sii", HEADER_FORMAT);
 	return format;
 }
 

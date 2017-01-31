@@ -139,20 +139,22 @@ void Session_Hashtable_Calc_Size_Items(Session_Hashtable* session_hashtable, uns
 	int x = 0;
 	*size = 0;
 	*num_items = 0;
-	for(x=0; x<session_hashtable->size; x++) {	
-		if(session_hashtable->table[x] != NULL) {
-			Session_List* list = (Session_List*)session_hashtable->table[x];
-			Session_Node* current = list->head->next;
-			while(current != NULL) {
-				unsigned int username_size = strlen(current->session->username) + 1;
-				char format[128] = {'\0'};
-				int bytes = sprintf(format, "!I%isii", username_size);
-				*size = *size + Binary_Calcsize(format); 
-				*num_items = *num_items + 1;
-				current = current->next;
-			}//end while session list
-		}//end if not null
-	}//end for loop	
+	if(session_hashtable != NULL) {
+		for(x=0; x<session_hashtable->size; x++) {	
+			if(session_hashtable->table[x] != NULL) {
+				Session_List* list = (Session_List*)session_hashtable->table[x];
+				Session_Node* current = list->head->next;
+				while(current != NULL) {
+					unsigned int username_size = strlen(current->session->username) + 1;
+					char format[128] = {'\0'};
+					int bytes = sprintf(format, "!I%isii", username_size);
+					*size = *size + Binary_Calcsize(format); 
+					*num_items = *num_items + 1;
+					current = current->next;
+				}//end while session list
+			}//end if not null
+		}//end for loop	
+	}//eend if null
 }//end function
 
 unsigned char* Session_Hashtable_To_Binary(Session_Hashtable* session_hashtable, unsigned int payload_body_size, unsigned int num_items) { 
@@ -168,31 +170,32 @@ unsigned char* Session_Hashtable_To_Binary(Session_Hashtable* session_hashtable,
 	memcpy(payload, payload_header, payload_header_size);	
 	int x = 0;
 	unsigned int total_size = 0;
-	for(x=0; x<session_hashtable->size; x++) {	
-		if(session_hashtable->table[x] != NULL) {
-			Session_List* list = (Session_List*)session_hashtable->table[x];
-			Session_Node* current = list->head->next;
-			while(current != NULL) {
-				unsigned int username_size = strlen(current->session->username) + 1;
-				//printf("username size: %i\n", username_size);
-				//printf("username: %s\n", current->session->username);
-				//printf("x: %i y: %i\n", current->session->location->x, current->session->location->y);
-				char format[128] = {'\0'};
-				int bytes = sprintf(format, "!I%isii", username_size);
-				unsigned int size = Binary_Calcsize(format);
-				//printf("size:%i %s\n", size, format);
-				unsigned char* chunk = Binary_Pack(format, username_size, current->session->username, current->session->location->x, current->session->location->y);
-				memcpy(payload_body, chunk, size);
-				free(chunk);
-				
-				payload_body = payload_body + size;
-				total_size+=size;
-				current = current->next;
+	if(session_hashtable != NULL) {
+		for(x=0; x<session_hashtable->size; x++) {	
+			if(session_hashtable->table[x] != NULL) {
+				Session_List* list = (Session_List*)session_hashtable->table[x];
+				Session_Node* current = list->head->next;
+				while(current != NULL) {
+					unsigned int username_size = strlen(current->session->username) + 1;
+					//printf("username size: %i\n", username_size);
+					//printf("username: %s\n", current->session->username);
+					//printf("x: %i y: %i\n", current->session->location->x, current->session->location->y);
+					char format[128] = {'\0'};
+					int bytes = sprintf(format, "!I%isii", username_size);
+					unsigned int size = Binary_Calcsize(format);
+					//printf("size:%i %s\n", size, format);
+					unsigned char* chunk = Binary_Pack(format, username_size, current->session->username, current->session->location->x, current->session->location->y);
+					memcpy(payload_body, chunk, size);
+					free(chunk);
+					
+					payload_body = payload_body + size;
+					total_size+=size;
+					current = current->next;
 
-			}//end while session list
-		}//end if not null
-	}//end for loop	
-	
+				}//end while session list
+			}//end if not null
+		}//end for loop	
+	}	
 	//printf("total_size: %i\n", total_size);
 	//printf("payload_body_size: %i\n", payload_body_size);
 	payload_body-=payload_body_size;
@@ -203,13 +206,14 @@ unsigned char* Session_Hashtable_To_Binary(Session_Hashtable* session_hashtable,
 }//end function
 
 Session_Hashtable* Binary_To_Session_Hashtable(char* session_token, unsigned char* data) {
-	
 	Session_Hashtable* result = Session_Hashtable_Create(20);
 	
 	unsigned int size = 0;
 	unsigned short num_items = 0;
 	char* format = "!IH";
 	Binary_Unpack(format, data, &size, &num_items);
+	printf("size: %i\n", size);
+	printf("num_items: %i\n", num_items);
 	unsigned int header_size = Binary_Calcsize(format);
 
 	unsigned char* payload_body = data + header_size; 
@@ -218,16 +222,20 @@ Session_Hashtable* Binary_To_Session_Hashtable(char* session_token, unsigned cha
 	for(x=0; x<num_items; x++) {
 		unsigned int username_size;
 		Binary_Unpack("!I", payload_body, &username_size);
+		printf("username size:%i\n", username_size);
 		char format[128] = {'\0'};
-		int bytes = sprintf(format, "!%isii", username_size);
-		char* username = '\0';
+		int bytes = sprintf(format, "!I%isii", username_size);
+		char username[USERNAME_LENGTH+1] = {'\0'};
 		int x = 0;
 		int y = 0;
-		Binary_Unpack(format, payload_body, username, &x, &y);
+		printf("format: %s\n", format);
+		Binary_Unpack(format, payload_body, &username_size, username, &x, &y);
+		printf("username: %s\n", username);
 		Location* location = Location_Create(0, 0, '\0', x, y);
 	       	Session* session = Session_Create(session_token, username, location, NULL, NULL, NULL);
 		Session_Hashtable_Set(result, username, session);
-		unsigned int item_size = Binary_Calcsize(format) + sizeof(unsigned int);	
+		unsigned int item_size = Binary_Calcsize(format);	
+		printf("item_size:%i\n", item_size);
 		payload_body += item_size;
 	}
 	return result;
@@ -267,13 +275,15 @@ void Session_Hashtable_Print(Session_Hashtable* table) {
 void Session_Hashtable_Destroy(Session_Hashtable* session_hashtable) {
 	//this is slow if the table is big
 	//but should only be used on shutdown
-	int i = 0;
-	for(i=0; i<session_hashtable->size; i++) {
-		if(session_hashtable->table[i] != NULL) {
-			Session_List_Destroy(session_hashtable->table[i]);
+	if(session_hashtable != NULL) {
+		int i = 0;
+		for(i=0; i<session_hashtable->size; i++) {
+			if(session_hashtable->table[i] != NULL) {
+				Session_List_Destroy(session_hashtable->table[i]);
+			}
 		}
+		free(session_hashtable);
 	}
-	free(session_hashtable);
 }	
 
 unsigned long Session_Hashtable_HashCode(unsigned int size, char *str) {

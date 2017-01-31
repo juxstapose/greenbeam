@@ -74,7 +74,7 @@ SDL_Rect* ZoneRange_Get_Rect(ZoneRange* zr, Config* config, Location* location, 
 	unsigned int size = 0;
 	char** filenames = ZoneRange_Get_Background_Image_Filenames(config, &size);
 	
-	/**
+	/**	
 	int i = 0;
 	printf("%p\n", filenames);
 	for(i=0; i<size; i++) {
@@ -89,8 +89,10 @@ SDL_Rect* ZoneRange_Get_Rect(ZoneRange* zr, Config* config, Location* location, 
 		Log_log(log_config, LOG_INFO, "total width: %i\n", total_width);
 		
 		unsigned int largest_height = Background_Get_Largest_Height(background);
+		
 			
 		int delta_pixels = zr->rect_percentage * total_width;
+		Log_log(log_config, LOG_INFO, "delta pixels: %i\n", delta_pixels);
 		int x_post = location->x + delta_pixels;
 		int x_pre = location->x - delta_pixels;
 		int width = abs(x_post - x_pre);

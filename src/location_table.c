@@ -9,7 +9,7 @@ void Location_Create_Table(sqlite3* db, LogConfig* log_config) {
 	char* sql = "CREATE TABLE IF NOT EXISTS location " \
 		    	"(location_key INTEGER PRIMARY KEY, " \
 		    	"location_user_key INTEGER, " \
-			"location_zonename TEXT UNIQUE NOT NULL, " \
+			"location_zonename TEXT NOT NULL, " \
 			"location_x INTEGER, " \
 			"location_y INTEGER);";
 	Database_Exec_Sql(db, sql, log_config);
