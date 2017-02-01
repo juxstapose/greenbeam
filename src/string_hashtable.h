@@ -25,3 +25,4 @@ void String_Hashtable_Resize(String_Hashtable* string_hashtable);
 unsigned long String_Hashtable_HashCode(unsigned int size, char *str);
 
 #endif
+

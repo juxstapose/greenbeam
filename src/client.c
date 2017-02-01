@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <pthread.h>
 #include "client.h"
 #include "protocol.h"
 #include "protocol_format.h"
@@ -24,6 +25,13 @@ ClientContext* ClientContext_Create(char name[CONTEXT_NAME_LENGTH+1], Socket* so
 	ctxt->log_config = log_config;
 	
 	ctxt->stop_thread = 0;	
+	
+	ctxt->mutex = PTHREAD_MUTEX_INITIALIZER; 
+	ctxt->cond = PTHREAD_COND_INITIALIZER;
+	
+	ctxt->stop_mutex = PTHREAD_MUTEX_INITIALIZER;	
+	ctxt->stop_cond = PTHREAD_COND_INITIALIZER;
+
 	return ctxt;
 }
 
@@ -72,9 +80,19 @@ unsigned int Client_Login_Send(ClientContext* ctxt, char username[USERNAME_LENGT
 unsigned int Client_Ping_Send(ClientContext* ctxt, char* session_token, int current_pos_x, int current_pos_y) {
 	unsigned char* data = Protocol_Ping_Send(session_token, current_pos_x, current_pos_y);
 	char* format = Protocol_Format_Get(data);
-	Log_log(ctxt->log_config, LOG_DEBUG, "format: %s\n", format);
 	unsigned int size_to_send = Binary_Calcsize(format);
-	Log_log(ctxt->log_config, LOG_DEBUG, "size to send:%i\n", size_to_send);
+	int bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config);
+	if(bytes_sent != size_to_send) {
+		Log_log(ctxt->log_config, LOG_ERROR, "%i != %i did not send all of the data", bytes_sent, size_to_send);
+		return -1;
+	}
+	return bytes_sent;
+}
+
+unsigned int Client_Movement_Send(ClientContext* ctxt, char* session_token, unsigned short direction, unsigned short speed, unsigned frames) {
+	unsigned char* data = Protocol_Movement_Send(session_token, direction, speed, frames);
+	char* format = Protocol_Format_Get(data);
+	unsigned int size_to_send = Binary_Calcsize(format);
 	int bytes_sent = Socket_Send(ctxt->sock, data, size_to_send, ctxt->log_config);
 	if(bytes_sent != size_to_send) {
 		Log_log(ctxt->log_config, LOG_ERROR, "%i != %i did not send all of the data", bytes_sent, size_to_send);

@@ -123,12 +123,12 @@ unsigned char* Protocol_Login_Response(char session_token[SESSION_LENGTH + 1],
 
 unsigned char* Protocol_Movement_Send(char session_token[SESSION_LENGTH+1], 
 		                      unsigned short direction, unsigned short speed, 
-				      unsigned short previous_frames) {
+				      unsigned short frames) {
 	char format[128] = {'\0'};	
 	int bytes = sprintf(format, "%sHHH", HEADER_FORMAT);
 	int payload_size = sizeof(unsigned short) + sizeof(unsigned short) + sizeof(unsigned short);
 	//printf("payload_size: %i\n", payload_size);	
-	unsigned char* result = Binary_Pack(format, 'S','A', session_token, CMD_MOVEMENT, PROTO_SEND, payload_size, direction, speed, previous_frames);
+	unsigned char* result = Binary_Pack(format, 'S','A', session_token, CMD_MOVEMENT, PROTO_SEND, payload_size, direction, speed, frames);
 	return result;	
 }
 

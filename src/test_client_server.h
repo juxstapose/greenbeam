@@ -1,17 +1,16 @@
 #ifndef _TEST_CLIENT_SERVER_H_
 #define _TEST_CLIENT_SERVER_H_
 
-#include <pthread.h>
+//#include <pthread.h>
 
-static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
+//static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+//static pthread_cond_t cond = PTHREAD_COND_INITIALIZER;
 
-static pthread_mutex_t stop_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t stop_cond = PTHREAD_COND_INITIALIZER;
+//static pthread_mutex_t stop_mutex = PTHREAD_MUTEX_INITIALIZER;
+//static pthread_cond_t stop_cond = PTHREAD_COND_INITIALIZER;
 
 void* receive_handler(void* arg);
 void Server_Run(char* ip_address, char* port); 
-
 
 unsigned char* Shutdown(Socket* sock, LogConfig* main_log_config, LogConfig* thread_log_config);
 unsigned char* Register(Socket* sock, char* username, char* password, char* email, 

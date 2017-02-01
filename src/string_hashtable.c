@@ -136,13 +136,15 @@ void String_Hashtable_Print(String_Hashtable* table) {
 void String_Hashtable_Destroy(String_Hashtable* string_hashtable) {
 	//this is slow if the table is big
 	//but should only be used on shutdown
-	int i = 0;
-	for(i=0; i<string_hashtable->size; i++) {
-		if(string_hashtable->table[i] != NULL) {
-			String_List_Destroy(string_hashtable->table[i]);
+	if(string_hashtable != NULL) {
+		int i = 0;
+		for(i=0; i<string_hashtable->size; i++) {
+			if(string_hashtable->table[i] != NULL) {
+				String_List_Destroy(string_hashtable->table[i]);
+			}
 		}
+		free(string_hashtable);
 	}
-	free(string_hashtable);
 }	
 
 unsigned long String_Hashtable_HashCode(unsigned int size, char *str) {

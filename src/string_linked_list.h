@@ -22,7 +22,6 @@ void String_List_Destroy(String_List* list);
 String_List* String_List_Create();
 void String_List_Push(String_List* list, char* string_key, char* data);
 int String_List_Size(String_List* list);
-char* String_List_String_Keys(String_List* list);
 void String_List_Delete(String_List* list, char* string_key);
 char* String_List_Find_By_Key(String_List* list, char* string_key);
 char* String_List_String_Keys(String_List* list);

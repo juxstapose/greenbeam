@@ -343,31 +343,36 @@ unsigned int Server_Register_Response_Send(ServerContext* ctxt, unsigned char* h
 	return bytes_sent;	
 }
 
-void Server_Populate_Range_Hashtables(ServerContext* ctxt, 
+void Server_Populate_Range_Hashtables(ServerContext* ctxt,
+	       			      char* current_username,	
 		                      Location* location,
 				      Session_Hashtable* session_hashtable_inrange, 
 				      Session_Hashtable* session_hashtable_outofrange) {
-	int x = 0;
-	for(x=0; x<ctxt->session_hashtable_username->size; x++) {	
-		if(ctxt->session_hashtable_username->table[x] != NULL) {
-			Session_List* list = (Session_List*)ctxt->session_hashtable_username->table[x];
-			Session_Node* current = list->head->next;
-			while(current != NULL) {
-				int r = ZoneRange_Is_Location_InRange(ctxt->zonerange, ctxt->config, location, current->session->location, ctxt->log_config);
-				Log_log(ctxt->log_config, LOG_DEBUG, "is in zone range: %i\n", r);
-				if(r == 1) {
-					Log_log(ctxt->log_config, LOG_DEBUG, "populate inrange with session\n");
-					Session_Hashtable_Remove(session_hashtable_outofrange, current->string_key); 
-					Session_Hashtable_Set(session_hashtable_inrange, current->string_key, current->session); 
-				} else {
-					Log_log(ctxt->log_config, LOG_DEBUG, "populate outofrange with session\n");
-					Session_Hashtable_Remove(session_hashtable_inrange, current->string_key); 
-					Session_Hashtable_Set(session_hashtable_outofrange, current->string_key, current->session); 
-				}
-				current = current->next;
-			}//end while session list
-		}//end if not null
-	}//end for loop		
+	if(ctxt->session_hashtable_username != NULL) {
+		int x = 0;
+		for(x=0; x<ctxt->session_hashtable_username->size; x++) {	
+			if(ctxt->session_hashtable_username->table[x] != NULL) {
+				Session_List* list = (Session_List*)ctxt->session_hashtable_username->table[x];
+				Session_Node* current = list->head->next;
+				while(current != NULL) {
+					if(current_username != current->session->username) { //dont compare to itself
+						int r = ZoneRange_Is_Location_InRange(ctxt->zonerange, ctxt->config, location, current->session->location, ctxt->log_config);
+						Log_log(ctxt->log_config, LOG_DEBUG, "is in zone range: %i\n", r);
+						if(r == 1) {
+							Log_log(ctxt->log_config, LOG_DEBUG, "populate inrange with session\n");
+							Session_Hashtable_Remove(session_hashtable_outofrange, current->string_key); 
+							Session_Hashtable_Set(session_hashtable_inrange, current->string_key, current->session); 
+						} else {
+							Log_log(ctxt->log_config, LOG_DEBUG, "populate outofrange with session\n");
+							Session_Hashtable_Remove(session_hashtable_inrange, current->string_key); 
+							Session_Hashtable_Set(session_hashtable_outofrange, current->string_key, current->session); 
+						}
+					}
+					current = current->next;
+				}//end while session list
+			}//end if not null
+		}//end for loop		
+	}//end if null
 }//end server function
 
 unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* header, unsigned char* payload) {
@@ -418,7 +423,8 @@ unsigned int Server_Login_Response_Send(ServerContext* ctxt, unsigned char* head
 			
 			Log_log(ctxt->log_config, LOG_DEBUG, "populate inrange and out of range hashtables\n");
 			//determine which sessions are in range and which are out of range	
-			Server_Populate_Range_Hashtables(ctxt, 
+			Server_Populate_Range_Hashtables(ctxt,
+				       			 user->username,	
 		        			         location,
 				      			 session_hashtable_inrange, 
 				      			 session_hashtable_outofrange);
@@ -506,26 +512,28 @@ unsigned int Server_Logout_Response_Send(ServerContext* ctxt, unsigned char* hea
 }
 
 void Server_Broadcast_Movement(ServerContext* ctxt, Session* session, unsigned short direction, unsigned short speed, unsigned short frames) {
-	int x = 0;
-	for(x=0; x<session->session_table_inrange->size; x++) {	
-		if(session->session_table_inrange->table[x] != NULL) {
-			Session_List* list = (Session_List*)session->session_table_inrange->table[x];
-			Session_Node* current = list->head->next;
-			while(current != NULL) {
-				Log_log(ctxt->log_config, LOG_DEBUG, "sending %s dir:%i and speed:%i frames:%i on sock id: %i", 
-					current->string_key, direction, speed, frames, current->session->sock->id);
-				
-				unsigned char* data = Protocol_Movement_Broadcast(current->session->session_token, direction, speed, frames);	
-				char* format = Protocol_Format_Get(data);
-				int size_to_send = Binary_Calcsize(format);
-				int bytes_sent = Socket_Send(current->session->sock, data, size_to_send, ctxt->log_config);
-				
-				Log_log(ctxt->log_config, LOG_DEBUG, "bytes sent:%i \n", bytes_sent);
+	if(session->session_table_inrange != NULL) {
+		int x = 0;
+		for(x=0; x<session->session_table_inrange->size; x++) {	
+			if(session->session_table_inrange->table[x] != NULL) {
+				Session_List* list = (Session_List*)session->session_table_inrange->table[x];
+				Session_Node* current = list->head->next;
+				while(current != NULL) {
+					Log_log(ctxt->log_config, LOG_DEBUG, "sending %s dir:%i and speed:%i frames:%i on sock id: %i", 
+						current->string_key, direction, speed, frames, current->session->sock->id);
 					
-				current = current->next;
-			}//end while session list
-		}//end if not null
-	}//end for loop		
+					unsigned char* data = Protocol_Movement_Broadcast(current->session->session_token, direction, speed, frames);	
+					char* format = Protocol_Format_Get(data);
+					int size_to_send = Binary_Calcsize(format);
+					int bytes_sent = Socket_Send(current->session->sock, data, size_to_send, ctxt->log_config);
+					
+					Log_log(ctxt->log_config, LOG_DEBUG, "bytes sent:%i \n", bytes_sent);
+						
+					current = current->next;
+				}//end while session list
+			}//end if not null
+		}//end for loop		
+	}//end if null
 }//Server Movement Broadcast
 
 
@@ -598,6 +606,7 @@ unsigned int Server_Ping_Response_Send(ServerContext* ctxt, unsigned char* heade
 
 		Log_log(ctxt->log_config, LOG_DEBUG, "populate inrange and outofrange hash tables\n");	
 		Server_Populate_Range_Hashtables(ctxt, 
+						 session_from_token->username,
 						 session_from_token->location,
 						 session_hashtable_inrange, 
 						 session_hashtable_outofrange);

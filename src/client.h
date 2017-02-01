@@ -1,12 +1,13 @@
 #ifndef _CLIENT_H_
 #define _CLIENT_H_
 
+#include <pthread.h>
 #include "protocol.h"
 #include "sock.h"
 #include "queue.h"
 #include "log.h"
 
-#define CONTEXT_NAME_LENGTH 16
+#define CONTEXT_NAME_LENGTH 128
 
 typedef struct ClientContext {
 	char name[CONTEXT_NAME_LENGTH+1];	
@@ -14,6 +15,10 @@ typedef struct ClientContext {
 	Queue* queue;
 	LogConfig* log_config;
 	int stop_thread;
+	pthread_mutex_t mutex;
+	pthread_cond_t cond;
+	pthread_mutex_t stop_mutex;
+	pthread_cond_t stop_cond;
 } ClientContext;
 
 ClientContext* ClientContext_Create(char name[CONTEXT_NAME_LENGTH+1], Socket* sock, Queue* queue, LogConfig* log_config);	

@@ -114,7 +114,7 @@ char* Socket_List_String_Keys(Socket_List* list) {
 	total_bytes += bytes;
 	Socket_Node* current = list->head->next;
 	while(current != NULL) {
-		bytes = sprintf(result, "%s", current->fd_id);
+		bytes = sprintf(result, "%i", current->fd_id);
 		result += bytes;
 		total_bytes += bytes;
 		if(i != size-1) {

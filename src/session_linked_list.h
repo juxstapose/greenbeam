@@ -3,8 +3,8 @@
 
 #include "session.h"
 
-#define SESSION_STRING_MAX_SIZE 8192 
-#define SESSION_LIST_STRING_LENGTH 10000 
+#define SESSION_STRING_MAX_SIZE 4096 
+#define SESSION_LIST_STRING_LENGTH 1000000 
 
 typedef struct Session Session;
 

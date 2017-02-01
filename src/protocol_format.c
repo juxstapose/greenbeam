@@ -235,7 +235,7 @@ char* Protocol_Format_Logout_Response(unsigned char* data) {
 }
 
 char* Protocol_Format_Movement_Send(unsigned char* data) {
-	int format_size = strlen(HEADER_FORMAT) + 1 + 3;
+	int format_size = strlen(HEADER_FORMAT) + 3 + 1;
 	char* format = (char*)malloc(format_size);
 	memset(format, '\0', format_size);
 	int bytes = sprintf(format, "%sHHH", HEADER_FORMAT);

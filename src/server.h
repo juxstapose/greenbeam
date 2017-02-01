@@ -52,7 +52,8 @@ ServerContext* ServerContext_Create(sqlite3* db,
 				    Session_Hashtable* session_hashtable_token,
 				    LogConfig* log_config);
 
-void Server_Populate_Range_Hashtables(ServerContext* ctxt, 
+void Server_Populate_Range_Hashtables(ServerContext* ctxt,
+	       			      char* current_username,	
 		                      Location* location,
 				      Session_Hashtable* session_hashtable_inrange, 
 				      Session_Hashtable* session_hashtable_outofrange);
