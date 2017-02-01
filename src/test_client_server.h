@@ -20,6 +20,11 @@ unsigned char* Login(Socket* sock, char* username, char* password,
 unsigned char* Logout(Socket* sock, char* session_token, 
 		      LogConfig* main_log_config, LogConfig* thread_log_config);
 
+void Movement_Broadcast(Socket_Hashtable* socket_hashtable_input, String_Hashtable* string_hashtable_input,
+	       		char* sending_username,	
+			char* session_token, unsigned short direction, unsigned short speed, unsigned short frames,
+			Binary_Hashtable* binary_hashtable_output,
+		        LogConfig* main_log_config, LogConfig* thread_log_config);
 
 void Test_Register_Send_Response(char* ip_address, char* port, LogConfig* main_log_config, LogConfig* thread_log_config);
 void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_config, LogConfig* thread_log_config);

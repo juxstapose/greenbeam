@@ -17,7 +17,7 @@ typedef struct ClientContext_Hashtable {
 
 ClientContext_Hashtable* ClientContext_Hashtable_Create(unsigned int init_size);	
 void ClientContext_Hashtable_Set(ClientContext_Hashtable* clientcontext_hashtable, char* key, ClientContext* ctxt);
-char* ClientContext_Hashtable_Get(ClientContext_Hashtable* clientcontext_hashtable, char* key);
+ClientContext* ClientContext_Hashtable_Get(ClientContext_Hashtable* clientcontext_hashtable, char* key);
 void ClientContext_Hashtable_Remove(ClientContext_Hashtable* clientcontext_hashtable, char* key);
 char* ClientContext_Hashtable_String(ClientContext_Hashtable* clientcontext_hashtable);
 void ClientContext_Hashtable_Print(ClientContext_Hashtable* table);

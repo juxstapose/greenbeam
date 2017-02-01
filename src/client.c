@@ -113,7 +113,7 @@ unsigned int Client_Shutdown_Send(ClientContext* ctxt) {
 	return bytes_sent;
 }
 
-Socket* Client_Connect(char* ip_address, char* port, LogConfig* log_config) {
+Socket* Client_Connect(char* ip_address, char* port, LogConfig* log_config, unsigned int retry) {
 	
 	Socket* sock = NULL;
 	
@@ -137,15 +137,23 @@ Socket* Client_Connect(char* ip_address, char* port, LogConfig* log_config) {
 		Log_log(log_config, LOG_ERROR, "socket creation error %s\n", strerror(errno));
 	}
 	sock = Socket_Create(id, ip_address, port);	
-	Log_log(log_config, LOG_DEBUG, "connect socket %i\n", id);
-	status = connect(id, servinfo->ai_addr, servinfo->ai_addrlen);
-	Log_log(log_config, LOG_DEBUG, "connect status %i\n", status);
 	
+	int i = 0;
 	int is_connected = 1;	
-	if(status < 0) {
-		Log_log(log_config, LOG_ERROR, "connect error %s\n", strerror(errno));
-		is_connected = 0;
+	for(i=0; i<retry; i++) {
+		Log_log(log_config, LOG_DEBUG, "connect socket %i\n", id);
+		status = connect(id, servinfo->ai_addr, servinfo->ai_addrlen);
+		Log_log(log_config, LOG_DEBUG, "connect status %i\n", status);
+		if(status < 0) {
+			Log_log(log_config, LOG_ERROR, "connect error %s\n", strerror(errno));
+			is_connected = 0;
+		} else if(status == 0) {
+			break;
+			is_connected = 1;
+		}
+		sleep(1);
 	}
+
 	if(is_connected == 1) {
 		if(sock !=NULL) {
 			Log_log(log_config, LOG_DEBUG, "make socket nonblocking\n");

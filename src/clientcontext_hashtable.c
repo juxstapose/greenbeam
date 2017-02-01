@@ -42,9 +42,9 @@ void ClientContext_Hashtable_Resize(ClientContext_Hashtable* clientcontext_hasht
 					new_table[new_index] = list;
 					new_count++;
 				} 
-				char* existing = ClientContext_List_Find_By_Key(new_table[new_index], current->string_key);
+				ClientContext* existing = ClientContext_List_Find_By_Key(new_table[new_index], current->string_key);
 				if(existing == NULL) {
-					ClientContext_List_Push(new_table[new_index], current->string_key, current->data);
+					ClientContext_List_Push(new_table[new_index], current->string_key, current->ctxt);
 				}
 				current = current->next;
 			}
@@ -74,15 +74,15 @@ void ClientContext_Hashtable_Set(ClientContext_Hashtable* clientcontext_hashtabl
 		clientcontext_hashtable->count++;
 	}
 	//handle collision
-	char* existing = ClientContext_List_Find_By_Key(clientcontext_hashtable->table[index], key);
+	ClientContext* existing = ClientContext_List_Find_By_Key(clientcontext_hashtable->table[index], key);
 	if(existing == NULL) {
 		ClientContext_List_Push(clientcontext_hashtable->table[index], key, ctxt);
 	}
 
 
 }
-char* ClientContext_Hashtable_Get(ClientContext_Hashtable* clientcontext_hashtable, char* key) {
-	char* result = NULL;
+ClientContext* ClientContext_Hashtable_Get(ClientContext_Hashtable* clientcontext_hashtable, char* key) {
+	ClientContext* result = NULL;
 	int index = ClientContext_Hashtable_HashCode(clientcontext_hashtable->size, key);
 	if(clientcontext_hashtable->table[index] != NULL) {
 		result = ClientContext_List_Find_By_Key(clientcontext_hashtable->table[index], key);

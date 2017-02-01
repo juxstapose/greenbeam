@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 	float rect_percentage = 0.1f;
 	ZoneRange* zonerange = ZoneRange_Create(rect_percentage);
 	
-	Socket_Hashtable* sock_hashtable = Socket_Hashtable_Create();
+	Socket_Hashtable* sock_hashtable = Socket_Hashtable_Create(20);
 	Session_Hashtable* session_hashtable_username = Session_Hashtable_Create(20);
 	Session_Hashtable* session_hashtable_token = Session_Hashtable_Create(20);
 	

@@ -4,6 +4,8 @@
 #define STRING_MAX_SIZE 8192 
 #define LIST_STRING_LENGTH 1000000 
 
+#include "client.h"
+
 
 typedef struct ClientContext_Node {
 	char string_key[STRING_MAX_SIZE];
@@ -24,7 +26,7 @@ void ClientContext_List_Push(ClientContext_List* list, char* string_key, ClientC
 int ClientContext_List_Size(ClientContext_List* list);
 char* ClientContext_List_String_Keys(ClientContext_List* list);
 void ClientContext_List_Delete(ClientContext_List* list, char* string_key);
-char* ClientContext_List_Find_By_Key(ClientContext_List* list, char* string_key);
+ClientContext* ClientContext_List_Find_By_Key(ClientContext_List* list, char* string_key);
 void ClientContext_List_Print(ClientContext_List *list);
 
 #endif

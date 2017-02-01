@@ -27,7 +27,8 @@ unsigned int Client_Register_Send(ClientContext* ctxt, char username[USERNAME_LE
 unsigned int Client_Login_Send(ClientContext* ctxt, char username[USERNAME_LENGTH+1], char password[PASSWORD_LENGTH+1]);
 unsigned int Client_Logout_Send(ClientContext* ctxt, char* session_token);
 unsigned int Client_Ping_Send(ClientContext* ctxt, char* session_token, int current_pos_x, int current_pos_y);
+unsigned int Client_Movement_Send(ClientContext* ctxt, char* session_token, unsigned short direction, unsigned short speed, unsigned frames);
 unsigned int Client_Shutdown_Send(ClientContext* ctxt);
-Socket* Client_Connect(char* ip_address, char* port, LogConfig* log_config);
+Socket* Client_Connect(char* ip_address, char* port, LogConfig* log_config, unsigned int retry);
 
 #endif

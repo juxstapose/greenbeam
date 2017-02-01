@@ -96,8 +96,13 @@ Socket* Server_Bind_Listen(char ip_address[NI_MAXHOST+1], char port[NI_MAXSERV+1
 	}
 	Log_log(log_config, LOG_DEBUG, "list sock should be null: %p\n", sock);	
 	int listener_socket = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+	int enable = 1;
+	int opt_status = setsockopt(listener_socket, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int));
+	if(opt_status < 0) {
+		Log_log(log_config, LOG_ERROR, "set socket option error %s\n", strerror(errno));
+	}
 	if(listener_socket == -1) {
-		Log_log(log_config, LOG_ERROR, "socket creation error %s", strerror(errno));
+		Log_log(log_config, LOG_ERROR, "socket creation error %s\n", strerror(errno));
 		return NULL;
 	} else {
 		sock = Socket_Create(listener_socket, ip_address, port);
@@ -196,7 +201,9 @@ void Server_Poll_Event_Handler(Config* config,
 					fd_item.fd = sock->id;
 					fd_item.events = POLLIN;	
 					PollFD_Dynamic_Array_Insert(fd_array, &fd_item);
+					Log_log(log_config, LOG_DEBUG, "before...\n");
 					Socket_Hashtable_Set(sock_hashtable, sock->id, sock);
+					Log_log(log_config, LOG_DEBUG, "after...\n");
 						
 				} else {
 					//get connected socket in set
@@ -277,6 +284,7 @@ void Server_Poll_Event_Handler(Config* config,
 		}//end loop through FDs
 		if(shutdown == 1) {
 			PollFD_Dynamic_Array_Destroy(fd_array);
+			close(listener->id);
 			break;
 		}
 	}//end while 1
@@ -513,13 +521,14 @@ unsigned int Server_Logout_Response_Send(ServerContext* ctxt, unsigned char* hea
 
 void Server_Broadcast_Movement(ServerContext* ctxt, Session* session, unsigned short direction, unsigned short speed, unsigned short frames) {
 	if(session->session_table_inrange != NULL) {
+		Log_log(ctxt->log_config, LOG_DEBUG, "movement broadcast inrange count: %i\n", session->session_table_inrange->count); 
 		int x = 0;
 		for(x=0; x<session->session_table_inrange->size; x++) {	
 			if(session->session_table_inrange->table[x] != NULL) {
 				Session_List* list = (Session_List*)session->session_table_inrange->table[x];
 				Session_Node* current = list->head->next;
 				while(current != NULL) {
-					Log_log(ctxt->log_config, LOG_DEBUG, "sending %s dir:%i and speed:%i frames:%i on sock id: %i", 
+					Log_log(ctxt->log_config, LOG_DEBUG, "sending %s dir:%i and speed:%i frames:%i on sock id: %i\n", 
 						current->string_key, direction, speed, frames, current->session->sock->id);
 					
 					unsigned char* data = Protocol_Movement_Broadcast(current->session->session_token, direction, speed, frames);	

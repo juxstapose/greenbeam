@@ -4,7 +4,7 @@
 #include <string.h>
 #include <stdio.h>
 
-Socket_Hashtable* Socket_Hashtable_Create(unsigned int init)size) {	
+Socket_Hashtable* Socket_Hashtable_Create(unsigned int init_size) {	
 	Socket_Hashtable* sock_hashtable = (Socket_Hashtable*)malloc(sizeof(Socket_Hashtable));
 	sock_hashtable->size = init_size;
        	sock_hashtable->count = 0;
@@ -41,7 +41,7 @@ void Socket_Hashtable_Resize(Socket_Hashtable* sock_hashtable) {
 					new_table[new_index] = list;
 					new_count++;
 				} 
-				char* existing = Socket_List_Find_By_Key(new_table[new_index], current->fd_id);
+				Socket* existing = Socket_List_Find_By_Key(new_table[new_index], current->fd_id);
 				if(existing == NULL) {
 					Socket_List_Push(new_table[new_index], current->fd_id, current->sock);
 				}
@@ -92,7 +92,7 @@ void Socket_Hashtable_Remove(Socket_Hashtable* sock_hashtable, int fd_id) {
 		int size = Socket_List_Size(sock_hashtable->table[index]);
 		//printf("size: %i\n", size);
 		if(size > 0) {
-			Socket_List_Delete(sock_hashtable->table[index], key);
+			Socket_List_Delete(sock_hashtable->table[index], fd_id);
 		} 
 		int new_size = Socket_List_Size(sock_hashtable->table[index]);
 		//printf("new_size: %i\n", new_size);

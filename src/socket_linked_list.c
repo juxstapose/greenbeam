@@ -4,19 +4,6 @@
 #include "sock.h"
 #include "socket_linked_list.h"
 
-
-Socket_Node* Socket_Node_Create(int fd_id, Socket* sock);
-void Socket_Node_Destroy(Socket_Node* node);
-void Socket_List_Destroy(Socket_List* list);
-Socket_List* Socket_List_Create();
-void Socket_List_Push(Socket_List* list, int fd_id, Socket* sock);
-int Socket_List_Size(Socket_List* list);
-char* Socket_List_String_Keys(Socket_List* list);
-void Socket_List_Delete(Socket_List* list, int fd_id);
-Socket* Socket_List_Find_By_Key(Socket_List* list, int fd_id);
-char* Socket_List_String_Keys(Socket_List* list);
-void Socket_List_Print(Socket_List *list);
-
 Socket_Node* Socket_Node_Create(int fd_id, Socket* sock) {
 	Socket_Node* node = (Socket_Node*)malloc(sizeof(Socket_Node));
 	node->fd_id = fd_id;

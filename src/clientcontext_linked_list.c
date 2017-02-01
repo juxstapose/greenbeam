@@ -8,9 +8,7 @@ ClientContext_Node* ClientContext_Node_Create(char* string_key, ClientContext* c
 	if(string_key != NULL) {
 		strcpy(node->string_key, string_key);
 	}
-	if(data != NULL) {
-		strcpy(node->data, data);
-	}
+	node->ctxt = ctxt;
 	node->next = NULL;
 	return node;
 }
@@ -70,12 +68,12 @@ void ClientContext_List_Delete(ClientContext_List* list, char* string_key) {
 
 }
 
-char* ClientContext_List_Find_By_Key(ClientContext_List* list, char* string_key) {
+ClientContext* ClientContext_List_Find_By_Key(ClientContext_List* list, char* string_key) {
 	ClientContext_Node* current = list->head->next;
-	char* result = NULL;
+	ClientContext* result = NULL;
 	while(current != NULL) {
 		if(strcmp(string_key, current->string_key) == 0) {
-			return current->data;
+			return current->ctxt;
 		}
 		current = current->next;
 	}

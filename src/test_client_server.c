@@ -16,7 +16,10 @@
 #include "session_hashtable.h"
 #include "clientcontext_hashtable.h"
 #include "socket_hashtable.h"
+#include "string_linked_list.h"
 #include "string_hashtable.h"
+#include "binary_linked_list.h"
+#include "binary_hashtable.h"
 #include "test_client_server.h"
 
 void* receive_handler(void* arg) {
@@ -328,11 +331,12 @@ unsigned char* Ping(Socket* sock, char* session_token, int current_pos_x, int cu
 void Movement_Broadcast(Socket_Hashtable* socket_hashtable_input, String_Hashtable* string_hashtable_input,
 	       		char* sending_username,	
 			char* session_token, unsigned short direction, unsigned short speed, unsigned short frames,
-			String_Hashtable* string_hashtable_output,
+			Binary_Hashtable* binary_hashtable_output,
 		        LogConfig* main_log_config, LogConfig* thread_log_config) {
 
 	ClientContext_Hashtable* client_context_hashtable = ClientContext_Hashtable_Create(20);
 	if(string_hashtable_input != NULL) {
+		int i =0;
 		for(i=0; i<string_hashtable_input->size; i++) {
 			if(string_hashtable_input->table[i] != NULL) {
 				String_List* list = (String_List*)string_hashtable_input->table[i];
@@ -359,47 +363,55 @@ void Movement_Broadcast(Socket_Hashtable* socket_hashtable_input, String_Hashtab
 			}//end if not null
 		}//end for loop
 
-		ClientContext* sending_ctxt = ClientContext_Session_Get(client_context_hashtable, sending_username);
+		ClientContext* sending_ctxt = ClientContext_Hashtable_Get(client_context_hashtable, sending_username);
 		int bytes_sent = Client_Movement_Send(sending_ctxt, session_token, direction, speed, frames);
 		
-		int i = 0;
-		for (i=0; i<string_hashtable_input->size; i++) {
-			if(string_hashtable_input->table[i] != NULL) {
-				String_List* list = (String_List*)string_hashtable_input->table[i];
-				String_Node* current = list->head->next;
-				unsigned char* data = NULL;
-				while(current != NULL) {
-					
-					ClientContext* context = ClientContext_Hashtable_Get(client_context_hashtable, current->string_key);
+		if(string_hashtable_input != NULL) {
+			for (i=0; i<string_hashtable_input->size; i++) {
+				if(string_hashtable_input->table[i] != NULL) {
+					String_List* list = (String_List*)string_hashtable_input->table[i];
+					String_Node* current = list->head->next;
+					unsigned char* data = NULL;
+					while(current != NULL) {
 						
-					//empty receive queue
-					Log_log(main_log_config, LOG_DEBUG, "peek at queue for data\n");
-					pthread_mutex_lock(&context->mutex);
-					while( (data = Queue_Front(context->queue)) == NULL) {
-						pthread_cond_wait(&context->cond, &context->mutex);
-					}
-					Queue_Dequeue(context->queue);
-					pthread_mutex_unlock(&context->mutex);
-					Log_log(main_log_config, LOG_DEBUG, "dequeued data from queue\n");
-					
-					String_Hashtable_Set(string_hashtable_output, current->string_key, (char*)data);
-		
-					pthread_mutex_lock(&context->stop_mutex);
-					Log_log(main_log_config, LOG_DEBUG, "stopping thread....\n");
-					context->stop_thread = 1;
-					while( context->stop_thread == 1) {
-						Log_log(main_log_config, LOG_DEBUG, "before cond wait: %i\n", context->stop_thread);
-						pthread_cond_wait(&ctxt->stop_cond, &context->stop_mutex);
-						Log_log(main_log_config, LOG_DEBUG, "after cond wait: %i\n", context->stop_thread);
-					}
-					pthread_mutex_unlock(&context->stop_mutex);
+						ClientContext* context = ClientContext_Hashtable_Get(client_context_hashtable, current->string_key);
+							
+						//empty receive queue
+						Log_log(main_log_config, LOG_DEBUG, "peek at queue for data\n");
+						pthread_mutex_lock(&context->mutex);
+						while( (data = Queue_Front(context->queue)) == NULL) {
+							pthread_cond_wait(&context->cond, &context->mutex);
+						}
+						Queue_Dequeue(context->queue);
+						pthread_mutex_unlock(&context->mutex);
+						Log_log(main_log_config, LOG_DEBUG, "dequeued data from queue\n");
+						
+						
+						unsigned int header_size = Binary_Calcsize(HEADER_FORMAT);
+						unsigned short cmd = 0;
+						unsigned short proto = 0;
+						unsigned int payload_size = 0;	
+						Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
+						printf("Movement Broadcast cmd:%i proto:%i\n", cmd, proto, payload_size);
+						Binary_Hashtable_Set(binary_hashtable_output, current->string_key, header_size+payload_size, data);
+			
+						pthread_mutex_lock(&context->stop_mutex);
+						Log_log(main_log_config, LOG_DEBUG, "stopping thread....\n");
+						context->stop_thread = 1;
+						while( context->stop_thread == 1) {
+							Log_log(main_log_config, LOG_DEBUG, "before cond wait: %i\n", context->stop_thread);
+							pthread_cond_wait(&context->stop_cond, &context->stop_mutex);
+							Log_log(main_log_config, LOG_DEBUG, "after cond wait: %i\n", context->stop_thread);
+						}
+						pthread_mutex_unlock(&context->stop_mutex);
 
-					ClientContext_Destroy(context);
-					
-					current = current->next;
-				} //end while
-			}//end string hashtable input
-		}//end for loop
+						ClientContext_Destroy(context);
+						
+						current = current->next;
+					} //end while
+				}//end string hashtable input
+			}//end for loop
+		}//end string hashtable input
 	}//end if hashtable null	
 }//end for loop
 
@@ -474,7 +486,7 @@ void Test_Register_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	char email[EMAIL_LENGTH+1] = {'\0'};
 	strcpy(email, "jimmy@thisisjimmy.com");
 
-	Socket* sock = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock);	
 
 	Log_log(main_log_config, LOG_INFO, "registering\n");
@@ -492,7 +504,6 @@ void Test_Register_Send_Response(char* ip_address, char* port, LogConfig* main_l
 		Log_log(main_log_config, LOG_INFO, "test 1 register response passed\n");
 	}
 	
-	sleep(3);
 		
 	Log_log(main_log_config, LOG_INFO, "registering again\n");
 	data = Register(sock, username, hidden_password, email, main_log_config, thread_log_config);
@@ -506,7 +517,6 @@ void Test_Register_Send_Response(char* ip_address, char* port, LogConfig* main_l
 		Log_log(main_log_config, LOG_INFO, "test 2 register error response passed\n");
 	}
 	
-	sleep(3);
 		
 	Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
 	Shutdown(sock, main_log_config, thread_log_config);
@@ -528,7 +538,7 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	char email[EMAIL_LENGTH+1] = {'\0'};
 	strcpy(email, "jimmy@thisisjimmy.com");
 
-	Socket* sock = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock);	
 	
 	Log_log(main_log_config, LOG_INFO, "logging in before registering\n");
@@ -546,8 +556,6 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	if(cmd == CMD_ERROR && proto == PROTO_RESPONSE && error_code == ERR_LOGIN_NOT_REG) {
 		Log_log(main_log_config, LOG_INFO, "test 1 login error response passed\n");
 	}
-	
-	sleep(3);
 
 	Log_log(main_log_config, LOG_INFO, "registering\n");
 	data = Register(sock, username, hidden_password, email, main_log_config, thread_log_config);
@@ -556,7 +564,6 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 2 register response passed\n");
 	}
-	sleep(3);
 	
 	Log_log(main_log_config, LOG_INFO, "logging in\n");
 	data = Login(sock, username, hidden_password, main_log_config, thread_log_config);
@@ -565,7 +572,6 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 	if(cmd == CMD_LOGIN && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 3 login response passed\n");
 	}
-	sleep(3);
 	
 	Log_log(main_log_config, LOG_INFO, "logging in again\n");
 	data = Login(sock, username, hidden_password, main_log_config, thread_log_config);
@@ -579,7 +585,6 @@ void Test_Login_Send_Response(char* ip_address, char* port, LogConfig* main_log_
 		Log_log(main_log_config, LOG_INFO, "test 4 login error response passed\n");
 	}
 	
-	sleep(3);
 		
 	Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
 	Shutdown(sock, main_log_config, thread_log_config);
@@ -600,7 +605,7 @@ void Test_Multiple_Login_Send_Response(char* ip_address, char* port, LogConfig* 
 	char email[EMAIL_LENGTH+1] = {'\0'};
 	strcpy(email, "jimmy@thisisjimmy.com");
 
-	Socket* sock = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock);	
 	
 	Log_log(main_log_config, LOG_INFO, "registering %s\n", username);
@@ -613,7 +618,6 @@ void Test_Multiple_Login_Send_Response(char* ip_address, char* port, LogConfig* 
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test register %s response passed\n", username);
 	}
-	sleep(2);
 	
 	char username_two[USERNAME_LENGTH+1] = {'\0'};
 	strcpy(username_two, "bobslob");
@@ -629,7 +633,6 @@ void Test_Multiple_Login_Send_Response(char* ip_address, char* port, LogConfig* 
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test register %s response passed\n", username_two);
 	}
-	sleep(2);
 
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username);
 	data = Login(sock, username, hidden_password, main_log_config, thread_log_config);
@@ -638,10 +641,9 @@ void Test_Multiple_Login_Send_Response(char* ip_address, char* port, LogConfig* 
 	if(cmd == CMD_LOGIN && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test login response passed\n");
 	}
-	sleep(2);
 
 
-	Socket* sock_two = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock_two = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock_two);
 	
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username_two);
@@ -675,7 +677,6 @@ void Test_Multiple_Login_Send_Response(char* ip_address, char* port, LogConfig* 
 	
 	Session_Hashtable_Destroy(hash_table);
 
-	sleep(2);
 		
 	Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
 	Shutdown(sock, main_log_config, thread_log_config);
@@ -698,7 +699,7 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	char email[EMAIL_LENGTH+1] = {'\0'};
 	strcpy(email, "jimmy@thisisjimmy.com");
 
-	Socket* sock = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock);	
 
 	Log_log(main_log_config, LOG_INFO, "registering %s\n", username);
@@ -711,7 +712,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 1 register %s response passed\n", username);
 	}
-	sleep(2);
 	
 	char username_two[USERNAME_LENGTH+1] = {'\0'};
 	strcpy(username_two, "bobslob");
@@ -727,7 +727,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 2 register %s response passed\n", username_two);
 	}
-	sleep(2);
 	
 	char username_three[USERNAME_LENGTH+1] = {'\0'};
 	strcpy(username_three, "jimbean");
@@ -743,7 +742,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 3 register %s response passed\n", username_three);
 	}
-	sleep(2);
 	
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username);
 	data = Login(sock, username, hidden_password, main_log_config, thread_log_config);
@@ -754,10 +752,9 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	}
 	char session_token[SESSION_LENGTH+1] = {'\0'};
 	Protocol_Session_Unpack(data, session_token);	
-	sleep(2);
 
 
-	Socket* sock_two = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock_two = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock_two);
 	
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username_two);
@@ -770,7 +767,7 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	char session_token_two[SESSION_LENGTH+1] = {'\0'};
 	Protocol_Session_Unpack(data, session_token_two);	
 	
-	Socket* sock_three = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock_three = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock_three);
 	
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username_three);
@@ -783,7 +780,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	char session_token_three[SESSION_LENGTH+1] = {'\0'};
 	Protocol_Session_Unpack(data, session_token_three);	
 
-	sleep(2);
 	
 	int x = 100;
 	int y = 200;
@@ -807,7 +803,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	Session_Hashtable* outofrange_session_hashtable = Binary_To_Session_Hashtable(session_token, outofrange_data);
 	Log_log(main_log_config, LOG_DEBUG, "outofrange ping response count: %i\n", outofrange_session_hashtable->count);
 
-	sleep(2);
 	
 	int x_two = 1000;
 	int y_two = 250;
@@ -830,7 +825,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	Session_Hashtable* outofrange_session_hashtable_two = Binary_To_Session_Hashtable(session_token_two, outofrange_data_two);
 	Log_log(main_log_config, LOG_DEBUG, "outofrange two ping response count: %i\n", outofrange_session_hashtable_two->count);
 
-	sleep(2);
 	
 	int x_three = 250;
 	int y_three = 150;
@@ -853,7 +847,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	Session_Hashtable* outofrange_session_hashtable_three = Binary_To_Session_Hashtable(session_token_three, outofrange_data_three);
 	Log_log(main_log_config, LOG_DEBUG, "outofrange three ping response count: %i\n", outofrange_session_hashtable_three->count);
 	
-	sleep(2);
 	
 	int x_four = 220;
 	int y_four = 100;
@@ -876,7 +869,6 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 	Session_Hashtable* outofrange_session_hashtable_four = Binary_To_Session_Hashtable(session_token_three, outofrange_data_four);
 	Log_log(main_log_config, LOG_DEBUG, "outofrange four ping response count: %i\n", outofrange_session_hashtable_four->count);
 	
-	sleep(2);
 	
 	Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
 	Shutdown(sock, main_log_config, thread_log_config);
@@ -890,9 +882,9 @@ void Test_Multiple_Ping_Send_Response(char* ip_address, char* port, LogConfig* m
 
 void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_log_config, LogConfig* thread_log_config) {
 		
-	Socket_Hashtable* socket_hashtable = Socket_Hashtable_Create(20);
+	Socket_Hashtable* socket_hashtable_input = Socket_Hashtable_Create(20);
 	String_Hashtable* string_hashtable_input = String_Hashtable_Create(20);
-	String_Hashtable* string_hashtable_output = String_Hashtable_Create(20);	
+	Binary_Hashtable* binary_hashtable_output = Binary_Hashtable_Create(20);
 
 	Log_log(main_log_config, LOG_DEBUG, "starting server in the background\n");
 	Server_Run(ip_address, port);	
@@ -904,14 +896,14 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	char email[EMAIL_LENGTH+1] = {'\0'};
 	strcpy(email, "jimmy@thisisjimmy.com");
 
-	Socket* sock = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock);	
 	
 	unsigned int sock_id_length = Util_Count_Digits(sock->id);
 	char* sock_id_str = (char*)malloc(sock_id_length + 1);
 	int bytes = sprintf(sock_id_str, "%i", sock->id);
 	String_Hashtable_Set(string_hashtable_input, username, sock_id_str);	
-	Socket_Hashtable_Set(socket_hashtable, sock->id, sock);	
+	Socket_Hashtable_Set(socket_hashtable_input, sock->id, sock);	
 
 	Log_log(main_log_config, LOG_INFO, "registering %s\n", username);
 	unsigned char* data = Register(sock, username, hidden_password, email, main_log_config, thread_log_config);
@@ -923,7 +915,6 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 1 register %s response passed\n", username);
 	}
-	sleep(2);
 	
 	char username_two[USERNAME_LENGTH+1] = {'\0'};
 	strcpy(username_two, "bobslob");
@@ -939,7 +930,6 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 2 register %s response passed\n", username_two);
 	}
-	sleep(2);
 	
 	char username_three[USERNAME_LENGTH+1] = {'\0'};
 	strcpy(username_three, "jimbean");
@@ -955,27 +945,25 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 3 register %s response passed\n", username_three);
 	}
-	sleep(2);
 	
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username);
 	data = Login(sock, username, hidden_password, main_log_config, thread_log_config);
 	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
 	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	if(cmd == CMD_LOGIN && proto == PROTO_RESPONSE) {
-		Log_log(main_log_config, LOG_INFO, "test 1login response passed\n");
+		Log_log(main_log_config, LOG_INFO, "test 1 sock 1 login response passed\n");
 	}
 	char session_token[SESSION_LENGTH+1] = {'\0'};
 	Protocol_Session_Unpack(data, session_token);	
-	sleep(2);
 
 
-	Socket* sock_two = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock_two = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock_two);
 	unsigned int sock_id_length_two = Util_Count_Digits(sock_two->id);
 	char* sock_id_str_two = (char*)malloc(sock_id_length_two + 1);
-	int bytes = sprintf(sock_id_str_two, "%i", sock_two->id);
+	bytes = sprintf(sock_id_str_two, "%i", sock_two->id);
 	String_Hashtable_Set(string_hashtable_input, username_two, sock_id_str_two);	
-	Socket_Hashtable_Set(socket_hashtable, sock_two->id, sock_two);	
+	Socket_Hashtable_Set(socket_hashtable_input, sock_two->id, sock_two);	
 	
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username_two);
 	data = Login(sock_two, username_two, hidden_password_two, main_log_config, thread_log_config);
@@ -987,13 +975,13 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	char session_token_two[SESSION_LENGTH+1] = {'\0'};
 	Protocol_Session_Unpack(data, session_token_two);	
 	
-	Socket* sock_three = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock_three = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock_three);
 	unsigned int sock_id_length_three = Util_Count_Digits(sock_three->id);
 	char* sock_id_str_three = (char*)malloc(sock_id_length_three + 1);
-	int bytes = sprintf(sock_id_str_three, "%i", sock_three->id);
+	bytes = sprintf(sock_id_str_three, "%i", sock_three->id);
 	String_Hashtable_Set(string_hashtable_input, username_three, sock_id_str_three);	
-	Socket_Hashtable_Set(socket_hashtable, sock_three->id, sock_three);	
+	Socket_Hashtable_Set(socket_hashtable_input, sock_three->id, sock_three);	
 	
 	Log_log(main_log_config, LOG_INFO, "%s logging in\n", username_three);
 	data = Login(sock_three, username_three, hidden_password_three, main_log_config, thread_log_config);
@@ -1005,8 +993,34 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	char session_token_three[SESSION_LENGTH+1] = {'\0'};
 	Protocol_Session_Unpack(data, session_token_three);	
 
-	sleep(2);
-			
+	
+	int x = 100;
+	int y = 200;
+	data = Ping(sock, session_token, x, y, main_log_config, thread_log_config);  		
+	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
+	if(cmd == CMD_PING && proto == PROTO_RESPONSE) {
+		Log_log(main_log_config, LOG_INFO, "test 1 sock 1 ping response passed\n");
+	}
+	
+	int x_two = 150;
+	int y_two = 250;
+	data = Ping(sock_two, session_token_two, x_two, y_two, main_log_config, thread_log_config);  		
+	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
+	if(cmd == CMD_PING && proto == PROTO_RESPONSE) {
+		Log_log(main_log_config, LOG_INFO, "test 2 sock 2 ping response passed\n");
+	}
+	
+	int x_three = 170;
+	int y_three = 290;
+	data = Ping(sock_three, session_token_three, x_three, y_three, main_log_config, thread_log_config);  		
+	Protocol_Header_Unpack(data, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
+	if(cmd == CMD_PING && proto == PROTO_RESPONSE) {
+		Log_log(main_log_config, LOG_INFO, "test 3 sock 3 ping response passed\n");
+	}
+
 	unsigned short direction = 7;
 	unsigned short speed = 3;
 	unsigned short frames = 10;
@@ -1014,29 +1028,28 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	Movement_Broadcast(socket_hashtable_input, string_hashtable_input,
 			   username,	
 			   session_token, direction, speed, frames,
-			   string_hashtable_output,
+			   binary_hashtable_output,
 			   main_log_config, thread_log_config);
 	
 	unsigned int header_size = Binary_Calcsize(HEADER_FORMAT);
-	unsigned char* data_one = (unsigned char*)String_Hashtable_Get(string_hashtable_output, username);	
-	unsigned short cmd = 0;
-	unsigned short proto = 0;
-	unsigned int payload_size = 0;	
+	unsigned char* data_one = Binary_Hashtable_Get(binary_hashtable_output, username);	
 	Protocol_Header_Unpack(data_one, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "cmd:%i proto:%i payload_size:%i\n", cmd, proto, payload_size);
 	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	if(cmd == CMD_MOVEMENT && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 1 movement response passed\n");
 	}
 	
-	unsigned char* data_two = (unsigned char*)String_Hashtable_Get(string_hashtable_output, username_two);	
+	unsigned char* data_two = Binary_Hashtable_Get(binary_hashtable_output, username_two);	
 	Protocol_Header_Unpack(data_two, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "cmd:%i proto:%i payload_size:%i\n", cmd, proto, payload_size);
 	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	if(cmd == CMD_MOVEMENT && proto == PROTO_BROADCAST) {
 		Log_log(main_log_config, LOG_INFO, "test 2 movement broadcast passed\n");
 		unsigned short direction_output_two = 0;
 		unsigned short speed_output_two = 0;
 		unsigned short frames_output_two = 0;
-		Protocol_Movement_Send_Payload_Unpack(data_two + header_size, &direction_output_two, &speed_output_two, &frames_output_two) {
+		Protocol_Movement_Send_Payload_Unpack(data_two+header_size, &direction_output_two, &speed_output_two, &frames_output_two);
 		if(direction == direction_output_two) {
 			Log_log(main_log_config, LOG_DEBUG, "test 2 direction result passed\n");
 		}
@@ -1048,15 +1061,16 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 		}
 	}
 	
-	unsigned char* data_three = (unsigned char*)String_Hashtable_Get(string_hashtable_output, username_three);	
+	unsigned char* data_three = Binary_Hashtable_Get(binary_hashtable_output, username_three);	
 	Protocol_Header_Unpack(data_three, &cmd, &proto, &payload_size);	
+	Log_log(main_log_config, LOG_DEBUG, "cmd:%i proto:%i payload_size:%i\n", cmd, proto, payload_size);
 	Log_log(main_log_config, LOG_DEBUG, "payload size: %i\n", payload_size);
 	if(cmd == CMD_MOVEMENT && proto == PROTO_BROADCAST) {
 		Log_log(main_log_config, LOG_INFO, "test 3 movement broadcast passed\n");
 		unsigned short direction_output_three = 0;
 		unsigned short speed_output_three = 0;
 		unsigned short frames_output_three = 0;
-		Protocol_Movement_Send_Payload_Unpack(data_three + header_size, &direction_output_three, &speed_output_three, &frames_output_three) {
+		Protocol_Movement_Send_Payload_Unpack(data_three + header_size, &direction_output_three, &speed_output_three, &frames_output_three);
 		if(direction == direction_output_three) {
 			Log_log(main_log_config, LOG_DEBUG, "test 3 direction result passed\n");
 		}
@@ -1071,9 +1085,9 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
 	Shutdown(sock, main_log_config, thread_log_config);
 
-	Socket_Hashtable_Destroy(socket_hashtable);
+	Socket_Hashtable_Destroy(socket_hashtable_input);
 	String_Hashtable_Destroy(string_hashtable_input);
-	String_Hashtable_Destroy(string_hashtable_output);
+	Binary_Hashtable_Destroy(binary_hashtable_output);
 	
 	free(sock_id_str);
 	free(sock_id_str_two);
@@ -1084,8 +1098,6 @@ void Test_Movement_Send_Response(char* ip_address, char* port, LogConfig* main_l
 	Socket_Destroy(sock_three);
 	
 }
-
-/**
 
 void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log_config, LogConfig* thread_log_config) {
 
@@ -1099,7 +1111,7 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 	char email[EMAIL_LENGTH+1] = {'\0'};
 	strcpy(email, "jimmy@thisisjimmy.com");
 
-	Socket* sock = Client_Connect(ip_address, port, main_log_config);
+	Socket* sock = Client_Connect(ip_address, port, main_log_config, 3);
 	Socket_Make_Nonblocking(sock);	
 	
 	Log_log(main_log_config, LOG_INFO, "registering\n");
@@ -1112,7 +1124,6 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 	if(cmd == CMD_REGISTER && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 1 register response passed\n");
 	}
-	sleep(3);
 	
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////	
 	char session_token[SESSION_LENGTH+1] = {'\0'};
@@ -1129,7 +1140,6 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 		Log_log(main_log_config, LOG_INFO, "test 2 logout error response passed\n");
 	}
 
-	sleep(3);
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	Log_log(main_log_config, LOG_INFO, "logging in\n");
 	data = Login(sock, username, hidden_password, main_log_config, thread_log_config);
@@ -1138,7 +1148,6 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 	if(cmd == CMD_LOGIN && proto == PROTO_RESPONSE) {
 		Log_log(main_log_config, LOG_INFO, "test 3 login response passed\n");
 	}
-	sleep(3);
 	
 	data = Logout(sock, session_token, main_log_config, thread_log_config);
 		
@@ -1147,7 +1156,6 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 		Log_log(main_log_config, LOG_INFO, "test 4 logout response passed\n");
 	}
 
-	sleep(3);
 	
 	Log_log(main_log_config, LOG_INFO, "sending shutdown cmd\n");
 	Shutdown(sock, main_log_config, thread_log_config);
@@ -1155,7 +1163,6 @@ void Test_Logout_Send_Response(char* ip_address, char* port, LogConfig* main_log
 	Socket_Destroy(sock);
 
 }
-**/
 
 int main(int argc, char* argv[]) {	
 	
@@ -1174,12 +1181,13 @@ int main(int argc, char* argv[]) {
 							 5);
 	char* ip_address = "192.168.0.2";
 	char* port = "57132";
-	//Test_Register_Send_Response(ip_address, port, main_log_config, thread_log_config);
-	//Test_Login_Send_Response(ip_address, port, main_log_config, thread_log_config);
-	//Test_Multiple_Login_Send_Response(ip_address, port, main_log_config, thread_log_config);
-	//Test_Multiple_Ping_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	Test_Register_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	Test_Login_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	Test_Multiple_Login_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	Test_Multiple_Ping_Send_Response(ip_address, port, main_log_config, thread_log_config);
 	Test_Movement_Send_Response(ip_address, port, main_log_config, thread_log_config);
-	//Test_Logout_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	Test_Logout_Send_Response(ip_address, port, main_log_config, thread_log_config);
+	
 		
 	return 0;
 }
